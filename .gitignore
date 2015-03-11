@@ -1,0 +1,4 @@
+*.o
+*.ram
+simulator
+asm_compiler

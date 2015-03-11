@@ -1,0 +1,20 @@
+#ifndef PERI_H_
+#define PERI_H_
+
+#include "computer.h"
+
+#define PERI_ADDR_KEYBOARD 1
+#define PERI_ADDR_ASCII_PRINTER 2
+#define PERI_ADDR_INTEGER_PRINTER 3
+#define PERI_ADDR_TERMINATE 4
+
+void peri_keyboard_buffered_input(computer *comp, unsigned char *key);
+void peri_keyboard_unbuffered_input(computer *comp, unsigned char *key);
+
+void peri_ascii_printer_output(computer *comp, unsigned char c);
+void peri_integer_printer_output(computer *comp, unsigned char i);
+
+void peri_terminate_output(computer *comp, unsigned char c);
+
+#endif
+

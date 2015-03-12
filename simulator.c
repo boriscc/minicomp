@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 {
     computer comp;
 #ifdef HAVE_TIMING
-    double freq = 100;
+    double freq = 1000;
     double cycle_time = 1 / freq;
 #endif
 

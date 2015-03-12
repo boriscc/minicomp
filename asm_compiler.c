@@ -338,20 +338,24 @@ int main(int argc, char *argv[])
         } else if(strcmp(tline, "OUTA") == 0) {
             set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_IO << 4) + 12 + get_reg(sub1)));
             if(sub2) bad = 1;
-        } else if(strcmp(tline, "JZ") == 0) {
-            set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_JXXX << 4) + (1 << COMPUTER_FLAG_ZERO)));
-            set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
-            if(sub2) bad = 1;
-        } else if(strcmp(tline, "JE") == 0) {
-            set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_JXXX << 4) + (1 << COMPUTER_FLAG_EQUAL)));
-            set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
-            if(sub2) bad = 1;
-        } else if(strcmp(tline, "JA") == 0) {
-            set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_JXXX << 4) + (1 << COMPUTER_FLAG_A_LARGER)));
-            set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
-            if(sub2) bad = 1;
-        } else if(strcmp(tline, "JC") == 0) {
-            set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_JXXX << 4) + (1 << COMPUTER_FLAG_CARRY)));
+        } else if(tline[0] == 'J') {
+            int ram_tmp = COMPUTER_INSTR_JXXX << 4;
+
+            for(i = 1; i < (int)strlen(tline); i++) {
+                if(tline[i] == 'Z') {
+                    ram_tmp |= 1 << COMPUTER_FLAG_ZERO;
+                } else if(tline[i] == 'E') {
+                    ram_tmp |= 1 << COMPUTER_FLAG_EQUAL;
+                } else if(tline[i] == 'A') {
+                    ram_tmp |= 1 << COMPUTER_FLAG_A_LARGER;
+                } else if(tline[i] == 'C') {
+                    ram_tmp |= 1 << COMPUTER_FLAG_CARRY;
+                } else {
+                    fprintf(stderr, "Unknown instruction '%s' on line %d.\n", tline, in_line);
+                    exit(EXIT_FAILURE);
+                }
+            }
+            set_ram(ram, &ram_pos, (unsigned char)ram_tmp);
             set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
             if(sub2) bad = 1;
         } else {

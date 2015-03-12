@@ -22,6 +22,7 @@ void computer_reset(computer *comp)
     comp->io_output[PERI_ADDR_ASCII_PRINTER] = peri_ascii_printer_output;
     comp->io_output[PERI_ADDR_INTEGER_PRINTER] = peri_integer_printer_output;
     comp->io_output[PERI_ADDR_TERMINATE] = peri_terminate_output;
+    comp->io_input[PERI_ADDR_RANDOM] = peri_random_input;
 }
 
 int computer_is_running(computer *comp)

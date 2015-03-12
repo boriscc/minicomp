@@ -1,5 +1,7 @@
 #include "peri.h"
+#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #ifdef HAVE_NCURSES
 #   include <ncurses.h>
 #else
@@ -103,5 +105,17 @@ void peri_integer_printer_output(computer *comp, unsigned char i)
 void peri_terminate_output(computer *comp, unsigned char c)
 {
     comp->is_running = 0;
+}
+
+void peri_random_input(computer *comp, unsigned char *rnd)
+{
+    static int initialized = 0;
+
+    if(initialized == 0) {
+        srand((unsigned int)time(NULL));
+        initialized = 1;
+    }
+
+    *rnd = (unsigned char)rand();
 }
 

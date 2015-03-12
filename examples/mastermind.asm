@@ -1,3 +1,10 @@
+# Program to play mastermind as the code breaker.
+# You get 12 tries to guess the correct code, which
+# consists of four numbers, one to six.
+# Usage: At the prompt, enter four digits in the
+# range 1-6, then the program tells you first how many
+# of those were correct and in the right place, then
+# how many were correct but in the wrong place.
 ld   ra rb # ra=0 => rb=1
 ld   rb rd # rb=1 => rd=7
 data ra 5
@@ -5,7 +12,7 @@ outa ra
 data rc $correct
 
 # Need rd=7, rb=1, rc=$correct, use ra
-set_correct:
+set_correct: # Generate the correct code
   ind  ra
   and  rd ra
   and  rd ra
@@ -21,13 +28,13 @@ set_correct:
 set_correct_done:
   data ra 2
   outa ra # ascii printer
-new_guess:
+new_guess: # Prompt the user for the next guess
   data rb '?'
   outd rb
   shr  ra ra
   outa ra # keyboard
   data rd $guess
-next_sub_guess:
+next_sub_guess: # Prompt the user for the next digit
   ind  ra # Get key
   or   ra ra
   jz   $next_sub_guess
@@ -54,7 +61,7 @@ guess_done:
   outa ra # integer printer
   data rd $guess
   data rb 1
-print_next_guess:
+print_next_guess: # Print the guess the user made
   ld   rd rc
   or   rc rc
   jz   $print_guess_done
@@ -93,7 +100,8 @@ add_correct_exact:
     st   rb rc
 calc_nr_correct_exact_next_pre:
     add  rd ra
-calc_nr_correct_exact_next:
+calc_nr_correct_exact_next: # Calculate the number of correct guesses
+                            # in the correct spot he user made
   data rc $correct
   add  ra rc
   ld   rc rb
@@ -142,7 +150,8 @@ calc_nr_correct_outer_pre:
     or   rb rb
     jz   $calc_nr_correct_done
 # Here, (ra, rb, rc, rd) = (-, rnd, *tmp1, 1)
-calc_nr_correct_outer:
+calc_nr_correct_outer: # Outer loop (correct list) to calculate
+                       # number of correct but wrong place
   data ra $guess
   jmp  $calc_nr_correct_inner
 calc_nr_correct_add:
@@ -156,7 +165,7 @@ calc_nr_correct_add:
   jmp  $calc_nr_correct_outer_pre
 calc_nr_correct_inner_pre:
   add  rd ra
-calc_nr_correct_inner:
+calc_nr_correct_inner: # The inner loop over the guess list
   ld   ra rb # rb = *guess
   or   rb rb
   jz   $calc_nr_correct_outer_pre

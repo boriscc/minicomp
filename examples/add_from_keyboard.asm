@@ -1,5 +1,11 @@
-ld   ra rc
-outa rc
+# Program to add digits entered via the keyboard by the user
+# Usage:
+# Input up to ten digits, the digits will be summed and at the
+# end displayed by the program. Characters less than '0' and
+# larger than '9' are ignored. A '0' signify end of input.
+ld   ra rc # Will set rc = 2, since the op-code for this
+           # instruction is 0000 0010 and ra = 0 at start of program.
+outa rc # ASCII printer
 
 input_start:
   data ra 'a'
@@ -11,12 +17,11 @@ input_start:
   outd ra
 
   shr  rc rc
-  outa rc
+  outa rc # Keyboard
 get_input:
   ind  rd
-  not  rd rd
-  not  rd rd
-  jz   $get_input
+  or   rd rd
+  jz   $get_input # If no input is available
   data ra '0'
   cmp  ra rd
   je   $input_done
@@ -48,7 +53,7 @@ get_input:
 
 input_end:
   shl  rc rc
-  outa rc
+  outa rc # ASCII printer
   jmp  $input_start
 
 input_done:
@@ -70,15 +75,15 @@ sum_start:
 sum_done:
   data rb 3
   outa rb
-  outd ra
+  outd ra # Integer printer
 
   shl  rc rc
-  outa rc
+  outa rc # ASCII printer
   data ra 10
   outd ra
 
   shl  rc rc
-  outa rc
+  outa rc # Power button
   outd rc # terminate
 
 offset:

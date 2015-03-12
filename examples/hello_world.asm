@@ -1,5 +1,7 @@
+# Prints hello world in a simple manner.
+# Usage: Just run and "Hello, World!" will be printed.
 ld   ra rc  # Will load address 0 into rc, address 0 = 00000010
-outa rc
+outa rc # ASCII printer
 data ra 'H'
 outd ra
 data ra 'e'
@@ -26,5 +28,5 @@ outd ra
 data ra 10 # new line
 outd ra
 shl  rc rc # 2 * 2 = 4
-outa rc
+outa rc # Power button
 outd rc

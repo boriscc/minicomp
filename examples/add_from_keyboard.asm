@@ -20,7 +20,7 @@ get_input:
   data ra '0'
   cmp  ra rd
   je   $input_done
-  ja   $end # User entered ascii < '0', i.e. invalid
+  ja   $input_end # User entered ascii < '0', i.e. invalid
   data ra '9'
   cmp  rd ra
   ja   $input_end # User entered ascii > '9', i.e. invalid

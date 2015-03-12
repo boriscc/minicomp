@@ -373,6 +373,10 @@ int main(int argc, char *argv[])
         for(p = label; p; p = p->next) {
             struct label_pos_list *q;
 
+            if(p->base == 0) {
+                fprintf(stderr, "Undefined label '%s'.\n", p->name);
+                exit(EXIT_FAILURE);
+            }
             for(q = p->pos; q; q = q->next) {
                 ram[q->pos] = (unsigned char)p->base;
             }

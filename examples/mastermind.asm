@@ -73,58 +73,62 @@ print_guess_done:
 
   # ra will be used as index
   xor  ra ra
-  # Set *nr_correct_exact = 0
-    data rb $nr_correct_exact
+  # Set *nr_correct = 0
+    data rb $nr_correct
     st   rb ra
   jmp $calc_nr_correct_exact_next
 add_correct_exact:
   # Invert the correct to indicate it has been accounted for
     not  rb rb
-    st   rd rb
+    st   rc rb
   # Scramble the guess too
     data rd $guess
+    add  ra rd
     st   rd rd
   data rd 1
-  # increase *nr_correct_exact by 1
-    data rb $nr_correct_exact
+  # increase *nr_correct by 1
+    data rb $nr_correct
     ld   rb rc
     add  rd rc
     st   rb rc
 calc_nr_correct_exact_next_pre:
     add  rd ra
 calc_nr_correct_exact_next:
-  data rd $correct
-  add  ra rd
-  ld   rd rb
-  cmp  rd rb # A bit ugly, assume rd < 250
+  data rc $correct
+  add  ra rc
+  ld   rc rb
+  or   rb rb
+  jz   $calc_nr_correct_exact_done
+  cmp  rc rb # A bit ugly, assume rc < 250
   ja   $calc_nr_correct_exact_tmp
   not  rb rb
 calc_nr_correct_exact_tmp:
-  or   rb rb
-  jz   $calc_nr_correct_exact_done
-  data rc $guess
-  add  ra rc
-  ld   rc rc
-  cmp  rb rc
+  data rd $guess
+  add  ra rd
+  ld   rd rd
+  cmp  rb rd
   je   $add_correct_exact
-  st   rd rb
+  st   rc rb
   data rd 1
   jmp  $calc_nr_correct_exact_next_pre
 
 calc_nr_correct_exact_done:
-  # Print *nr_correct_exact
-    data ra $nr_correct_exact
-    ld   ra ra
-    outd ra
-  # Store $guess in $tmp1
-    data ra $guess
-    data rb $tmp1
-    st   rb ra
+# Here (ra, rb, rc, rd) = (4, 0, $correct+4, 1)
+  # Print *nr_correct
+    data rc $nr_correct
+    ld   rc rc
+    outd rc
+  # See if game is won
+    cmp  rc ra
+    je   $game_won
+  # Store $correct in $tmp1
+    data ra $correct
+    data rc $tmp1
+    st   rc ra
   # Set *nr_correct = 0
-    data rb $nr_correct
-    xor  ra ra
-    st   rb ra
-  data rd 1
+    data rc $nr_correct
+    st   rc rb
+# Here, (ra, rb, rc, rd) = ($correct, 0, $nr_correct, 1)
   jmp $calc_nr_correct_outer
 
 calc_nr_correct_outer_pre:
@@ -137,27 +141,28 @@ calc_nr_correct_outer_pre:
     ld   rc rb
     or   rb rb
     jz   $calc_nr_correct_done
+# Here, (ra, rb, rc, rd) = (-, rnd, *tmp1, 1)
 calc_nr_correct_outer:
-  data ra $correct
+  data ra $guess
   jmp  $calc_nr_correct_inner
 calc_nr_correct_add:
-  # Invert the correct to indicate it has been accounted for
-    not  rb rb
-    st   ra rb
+  # Scramble the guess to indicate it has been accounted for
+    st   ra ra
   # increase *nr_correct by 1
     data rb $nr_correct
     ld   rb rc
     add  rd rc
     st   rb rc
+  jmp  $calc_nr_correct_outer_pre
 calc_nr_correct_inner_pre:
   add  rd ra
 calc_nr_correct_inner:
-  ld   ra rb
+  ld   ra rb # rb = *guess
   or   rb rb
   jz   $calc_nr_correct_outer_pre
   data rc $tmp1
   ld   rc rc # rc = *tmp
-  ld   rc rc # rc = **tmp
+  ld   rc rc # rc = **tmp = *correct
   cmp  rb rc
   je   $calc_nr_correct_add
   jmp  $calc_nr_correct_inner_pre
@@ -178,42 +183,38 @@ calc_nr_correct_done:
   # Print new line
     data rc 10
     outd rc
-  # See if game is won
-    shl  ra rc # rc = 4
-    data rd $nr_correct_exact
-    ld   rd rd
-    cmp  rd rc
-    je   $game_won
   # See if game is lost
-    data rc 12
+    add  ra rc
     cmp  rb rc
     je   $game_lost
   # New guess
     jmp  $new_guess
 
 game_won:
-  data rb $win_msg
+# Here, (ra, rb, rc, rd) = (4, 0, 4, 1)
+  data ra $win_msg
   jmp  $game_end
 game_lost:
-  data rb $lose_msg
+# Here, (ra, rb, rc, rd) = (2, 12, 12, 1)
+  data ra $lose_msg
 game_end:
-  shr  ra ra
+  shl  rd rc
+  outa rc # ascii printer
 game_end_loop:
-  ld   rb rc
-  or   rc rc
+  ld   ra rb
+  or   rb rb
   jz   $terminate
-  outd rc
-  add  ra rb
+  outd rb
+  add  rd ra
   jmp  $game_end_loop
 
 terminate:
-  data ra 4
+# Here rc = 2
+  shl  rc ra
   outa ra
   outd ra
 
 tmp1:
-. 0
-nr_correct_exact:
 . 0
 nr_correct:
 . 0
@@ -232,6 +233,7 @@ guess:
 . 1
 . 0
 win_msg:
+. 10
 . 'Y'
 . 'o'
 . 'u'
@@ -252,8 +254,8 @@ lose_msg:
 . 's'
 . 'e'
 . '.'
-#. ' '
-#. ':'
-#. '('
+. ' '
+. ':'
+. '('
 . 10
 . 0

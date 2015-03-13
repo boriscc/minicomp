@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "computer.h"
+
+static int gs_in_line = 0;
+static int gs_error_nr = 0;
+static char *gs_asm_file = NULL;
+static char *gs_ram_file = NULL;
 
 void *malloc_safe(size_t s)
 {
@@ -14,6 +20,26 @@ void *malloc_safe(size_t s)
     }
 
     return d;
+}
+
+static void report_error(char const *msg, ...)
+    __attribute__((format(printf, 1, 2)));
+
+static void report_error(char const *msg, ...)
+{
+    va_list arg;
+
+    va_start(arg, msg);
+
+    if(gs_in_line >= 0) {
+        fprintf(stderr, "%s:%d Error: ", gs_asm_file, gs_in_line);
+    } else {
+        fprintf(stderr, "%s: Error: ", gs_asm_file);
+    }
+    vfprintf(stderr, msg, arg);
+    fprintf(stderr, ".\n");
+
+    gs_error_nr++;
 }
 
 /* Used to store locations in RAM where a label is used,
@@ -37,7 +63,7 @@ struct label_list *label_list_alloc(char *name)
 
     label->name = malloc_safe(strlen(name) + 1);
     strcpy(label->name, name);
-    label->base = 0;
+    label->base = -1;
     label->pos = NULL;
     label->next = NULL;
 
@@ -171,11 +197,13 @@ void set_ram(unsigned char *ram, int *pos, int val)
         fprintf(stderr, "Internal compiler error 2.\n");
         exit(EXIT_FAILURE);
     }
-    if(*pos > 255) {
-        fprintf(stderr, "Program too large.\n");
-        exit(EXIT_FAILURE);
+    if(*pos == 256) {
+        report_error("Program too large");
     }
-    ram[(*pos)++] = (unsigned char)val;
+    if(*pos < 256) {
+        ram[*pos] = (unsigned char)val;
+    }
+    (*pos)++;
 }
 
 /* Parse a number, either as binary, decimal, hexadecimal, octal, character or label */
@@ -244,14 +272,16 @@ int main(int argc, char *argv[])
     int ram_pos = 0;
     struct label_list *label = NULL;
     char line[BUFSIZ];
-    int in_line = 0;
     int i;
 
     if(argc != 3) {
         fprintf(stderr, "Usage: %s <asm-file> <ram-file>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    if((in = fopen(argv[1], "r")) == NULL) {
+    gs_asm_file = argv[1];
+    gs_ram_file = argv[2];
+
+    if((in = fopen(gs_asm_file, "r")) == NULL) {
         fprintf(stderr, "Could not open '%s' for reading.\n", argv[1]);
         exit(EXIT_FAILURE);
     }
@@ -262,7 +292,7 @@ int main(int argc, char *argv[])
         char *sub2 = NULL;
         int bad;
 
-        in_line++;
+        gs_in_line++;
 
         /* Skip empty lines and comments */
         if(tline[0] == '\0' || tline[0] == '#') continue;
@@ -303,8 +333,7 @@ int main(int argc, char *argv[])
             if(sub2) {
                 sub2 = trim(sub2);
                 if(strpbrk(sub2, " ,;\t")) {
-                    fprintf(stderr, "Invalid syntax at line %d.\n", in_line);
-                    exit(EXIT_FAILURE);
+                    report_error("Invalid syntax (too many words)");
                 }
             }
         }
@@ -319,8 +348,7 @@ int main(int argc, char *argv[])
         /* Check if the line is raw data */
         if(tline[0] == '.' && tline[1] == '\0') {
             if(sub1 == NULL || sub2 != NULL) {
-                fprintf(stderr, "Bad format at line %d. Expected: \". <number>\"\n", in_line);
-                exit(EXIT_FAILURE);
+                report_error("Bad data format, expected \". <number>\"");
             }
             set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
             continue;
@@ -380,25 +408,23 @@ int main(int argc, char *argv[])
                 } else if(tline[i] == 'C') {
                     ram_tmp |= 1 << COMPUTER_FLAG_CARRY;
                 } else {
-                    fprintf(stderr, "Unknown instruction '%s' on line %d.\n", tline, in_line);
-                    exit(EXIT_FAILURE);
+                    report_error("Unknown instruction \"%s\"", tline);
                 }
             }
             set_ram(ram, &ram_pos, (unsigned char)ram_tmp);
             set_ram(ram, &ram_pos, (unsigned char)get_number(sub1, &label, ram_pos));
             if(sub2) bad = 1;
         } else {
-            fprintf(stderr, "Unknown instruction '%s' on line %d.\n", tline, in_line);
-            exit(EXIT_FAILURE);
+            report_error("Unknown instruction \"%s\"", tline);
         }
 
         if(bad) {
-            fprintf(stderr, "Too many arguments on line %d.\n", in_line);
-            exit(EXIT_FAILURE);
+            report_error("Invalid syntax for op \"%s\" (too many words)", tline);
         }
     }
 
     fclose(in);
+    gs_in_line = -1;
 
     /* Set label positions. */
     {
@@ -409,9 +435,8 @@ int main(int argc, char *argv[])
             struct label_pos_list *q;
 
             /* If the label position is not set. */
-            if(p->base == 0) {
-                fprintf(stderr, "Undefined label '%s'.\n", p->name);
-                exit(EXIT_FAILURE);
+            if(p->base < 0) {
+                report_error("Undefined label \"%s\"", p->name);
             }
             /* Loop over all positions. */
             for(q = p->pos; q; q = q->next) {
@@ -420,15 +445,20 @@ int main(int argc, char *argv[])
         }
     }
 
-    if((out = fopen(argv[2], "wb")) == NULL) {
-        fprintf(stderr, "Could not open '%s' for writing.\n", argv[2]);
+    if(gs_error_nr) {
+        fprintf(stderr, "%d error%s found.\n", gs_error_nr, (gs_error_nr == 1) ? "" : "s");
         exit(EXIT_FAILURE);
     }
 
     /* Write RAM-data to out-file. */
+    if((out = fopen(gs_ram_file, "wb")) == NULL) {
+        fprintf(stderr, "Error: Could not open '%s' for writing.\n", gs_ram_file);
+        exit(EXIT_FAILURE);
+    }
+
     for(i = 0; i < ram_pos; i++) {
         if(fputc(ram[i], out) == EOF) {
-            fprintf(stderr, "Could not write to '%s'.\n", argv[2]);
+            fprintf(stderr, "Error: Could not write to \"%s\".\n", gs_ram_file);
             exit(EXIT_FAILURE);
         }
     }

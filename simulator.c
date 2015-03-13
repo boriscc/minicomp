@@ -24,7 +24,7 @@
 #endif
 
 #ifdef HAVE_TIMING
-double time_now()
+static double time_now()
 {
     struct timespec time_now_timespec;
 

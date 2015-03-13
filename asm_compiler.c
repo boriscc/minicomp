@@ -10,7 +10,7 @@ static int gs_error_nr = 0;
 static char *gs_asm_file = NULL;
 static char *gs_ram_file = NULL;
 
-void *malloc_safe(size_t s)
+static void *malloc_safe(size_t s)
 {
     void *d;
 
@@ -57,7 +57,7 @@ struct label_list {
     struct label_list *next;
 };
 
-struct label_list *label_list_alloc(char *name)
+static struct label_list *label_list_alloc(char *name)
 {
     struct label_list *label = malloc_safe(sizeof(struct label_list));
 
@@ -70,7 +70,7 @@ struct label_list *label_list_alloc(char *name)
     return label;
 }
 
-struct label_pos_list *label_pos_list_add_pos(struct label_pos_list *pos, int val)
+static struct label_pos_list *label_pos_list_add_pos(struct label_pos_list *pos, int val)
 {
     struct label_pos_list *p = pos;
 
@@ -91,7 +91,7 @@ struct label_pos_list *label_pos_list_add_pos(struct label_pos_list *pos, int va
     return pos;
 }
 
-struct label_list *label_list_add_pos(struct label_list *label, char *name, int pos)
+static struct label_list *label_list_add_pos(struct label_list *label, char *name, int pos)
 {
     struct label_list *p = label;
 
@@ -116,7 +116,7 @@ struct label_list *label_list_add_pos(struct label_list *label, char *name, int 
     return label;
 }
 
-struct label_list *label_list_set_base(struct label_list *label, char *name, int base)
+static struct label_list *label_list_set_base(struct label_list *label, char *name, int base)
 {
     struct label_list *p = label;
 
@@ -141,7 +141,7 @@ struct label_list *label_list_set_base(struct label_list *label, char *name, int
 }
 
 /* Characters that are treated as whitespace */
-int isignore(char c)
+static int isignore(char c)
 {
     return isspace(c) || c == ',';
 }
@@ -149,7 +149,7 @@ int isignore(char c)
 /* Remove whitespace (as defined by isignore()) from start and end
  * of string by returning the position of the first non-whitespace
  * and moving the end of the string to the last non-whitespace. */
-char *trim(char *s)
+static char *trim(char *s)
 {
     char *end;
 
@@ -171,7 +171,7 @@ char *trim(char *s)
 }
 
 /* Get numerical value of register from its name (ra, rb, rc, rd) */
-int get_reg(char *name)
+static int get_reg(char *name)
 {
     int i;
 
@@ -191,7 +191,7 @@ int get_reg(char *name)
 }
 
 /* Set RAM-value, and check that the value and position is okay. */
-void set_ram(unsigned char *ram, int *pos, int val)
+static void set_ram(unsigned char *ram, int *pos, int val)
 {
     if(val < 0 || val > 255) {
         fprintf(stderr, "Internal compiler error 2.\n");
@@ -207,7 +207,7 @@ void set_ram(unsigned char *ram, int *pos, int val)
 }
 
 /* Parse a number, either as binary, decimal, hexadecimal, octal, character or label */
-unsigned char get_number(char *s, struct label_list **label, int ram_pos)
+static unsigned char get_number(char *s, struct label_list **label, int ram_pos)
 {
     char *p;
     long val;

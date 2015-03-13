@@ -4,11 +4,57 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include "computer.h"
+#include <argp.h>
+#include "config_impl.h"
 
 static int gs_in_line = 0;
 static int gs_error_nr = 0;
-static char *gs_asm_file = NULL;
-static char *gs_ram_file = NULL;
+
+struct arguments {
+    int print_label_value;
+    char *asm_file;
+    char *ram_file;
+};
+
+static struct arguments gs_arg = { 0, NULL, NULL };
+
+char const *argp_program_version = "asm_compiler " MINICOMP_VERSION;
+char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";
+
+static char gs_argp_doc[] = "asm_compiler - Compile assembler into machine code for the minicomp computer.\n";
+static char gs_argp_args_doc[] = "asm-file ram-file";
+
+static struct argp_option gs_argp_options[] = {
+    { "print-label-value", 'L', NULL, 0, "Print numerical value of all labels", 0 },
+    { "no-print-label-value", 'l', NULL, OPTION_HIDDEN, "Do not print numerical value of all labels", 0 },
+    { 0, 0, 0, 0, 0, 0 }
+};
+
+static error_t parse_opt(int key, char *arg, struct argp_state *state)
+{
+    struct arguments *arguments = state->input;
+    
+    switch (key) {
+        case 'L':
+            arguments->print_label_value = 1;
+            break;
+        case 'l':
+            arguments->print_label_value = 0;
+            break;
+        case ARGP_KEY_ARG:
+            if(state->arg_num == 0) arguments->asm_file = arg;
+            if(state->arg_num == 1) arguments->ram_file = arg;
+            break;
+        case ARGP_KEY_END:
+            if(state->arg_num != 2) argp_usage(state);
+            break;
+        default:
+        return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+
+static struct argp gs_argp = { gs_argp_options, parse_opt, gs_argp_args_doc, gs_argp_doc, 0, 0, 0 };
 
 static void *malloc_safe(size_t s)
 {
@@ -32,9 +78,9 @@ static void report_error(char const *msg, ...)
     va_start(arg, msg);
 
     if(gs_in_line >= 0) {
-        fprintf(stderr, "%s:%d Error: ", gs_asm_file, gs_in_line);
+        fprintf(stderr, "%s:%d Error: ", gs_arg.asm_file, gs_in_line);
     } else {
-        fprintf(stderr, "%s: Error: ", gs_asm_file);
+        fprintf(stderr, "%s: Error: ", gs_arg.asm_file);
     }
     vfprintf(stderr, msg, arg);
     fprintf(stderr, ".\n");
@@ -128,6 +174,10 @@ static struct label_list *label_list_set_base(struct label_list *label, char *na
 
     for(p = label; ; p = p->next) {
         if(strcmp(p->name, name) == 0) {
+            /* If already set */
+            if(p->base >= 0) {
+                report_error("Duplicate label \"%s\"", p->name);
+            }
             p->base = base;
             return label;
         }
@@ -274,14 +324,9 @@ int main(int argc, char *argv[])
     char line[BUFSIZ];
     int i;
 
-    if(argc != 3) {
-        fprintf(stderr, "Usage: %s <asm-file> <ram-file>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-    gs_asm_file = argv[1];
-    gs_ram_file = argv[2];
+    argp_parse(&gs_argp, argc, argv, 0, 0, &gs_arg);
 
-    if((in = fopen(gs_asm_file, "r")) == NULL) {
+    if((in = fopen(gs_arg.asm_file, "r")) == NULL) {
         fprintf(stderr, "Could not open '%s' for reading.\n", argv[1]);
         exit(EXIT_FAILURE);
     }
@@ -437,6 +482,8 @@ int main(int argc, char *argv[])
             /* If the label position is not set. */
             if(p->base < 0) {
                 report_error("Undefined label \"%s\"", p->name);
+            } else if(gs_arg.print_label_value) {
+                printf("Label \"%s\" at ram-position %d.\n", p->name, p->base);
             }
             /* Loop over all positions. */
             for(q = p->pos; q; q = q->next) {
@@ -451,14 +498,14 @@ int main(int argc, char *argv[])
     }
 
     /* Write RAM-data to out-file. */
-    if((out = fopen(gs_ram_file, "wb")) == NULL) {
-        fprintf(stderr, "Error: Could not open '%s' for writing.\n", gs_ram_file);
+    if((out = fopen(gs_arg.ram_file, "wb")) == NULL) {
+        fprintf(stderr, "Error: Could not open '%s' for writing.\n", gs_arg.ram_file);
         exit(EXIT_FAILURE);
     }
 
     for(i = 0; i < ram_pos; i++) {
         if(fputc(ram[i], out) == EOF) {
-            fprintf(stderr, "Error: Could not write to \"%s\".\n", gs_ram_file);
+            fprintf(stderr, "Error: Could not write to \"%s\".\n", gs_arg.ram_file);
             exit(EXIT_FAILURE);
         }
     }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include "config_impl.h"
 #ifdef HAVE_NCURSES
 #   include <ncurses.h>
 #else

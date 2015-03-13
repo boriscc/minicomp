@@ -1,6 +1,7 @@
 #include "computer.h"
 #include "peri.h"
 #include <string.h>
+#include "config_impl.h"
 #ifdef HAVE_NCURSES
 #   include <ncurses.h>
 #endif

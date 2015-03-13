@@ -13,6 +13,9 @@ debug=0
 
 rm -f $conf_tmp $minc
 
+echo "#ifndef CONFIG_H_" >> $conf_tmp
+echo "#define CONFIG_H_" >> $conf_tmp
+
 if [ "$use_timing" == "1" ]; then
     echo "#define HAVE_TIMING" >> $conf_tmp
     echo "LDFLAGS += -lrt" >> $minc
@@ -31,6 +34,8 @@ fi
 echo -n "#define MINICOMP_VERSION \"" >> $conf_tmp
 (git describe --dirty 2>/dev/null || echo 0) | tr '\n' '"' >> $conf_tmp
 echo >> $conf_tmp
+
+echo "#endif" >> $conf_tmp
 
 if ! cmp $conf_tmp $conf > /dev/null 2>&1
 then mv $conf_tmp $conf

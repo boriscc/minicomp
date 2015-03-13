@@ -2,3 +2,6 @@
 *.ram
 simulator
 asm_compiler
+config.h
+config.local
+Makefile.inc

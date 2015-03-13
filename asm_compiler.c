@@ -16,15 +16,18 @@ void *malloc_safe(size_t s)
     return d;
 }
 
+/* Used to store locations in RAM where a label is used,
+ * so that the base value of the label can be inserted there. */
 struct label_pos_list {
-    int pos;
+    int pos; /* Position in RAM */
     struct label_pos_list *next;
 };
 
+/* List of all the labels. */
 struct label_list {
     char *name;
-    int base;
-    struct label_pos_list *pos;
+    int base; /* Location of the actual label */
+    struct label_pos_list *pos; /* Locations in RAM where the label is used */
     struct label_list *next;
 };
 
@@ -52,7 +55,9 @@ struct label_pos_list *label_pos_list_add_pos(struct label_pos_list *pos, int va
         return pos;
     }
 
+    /* Get to the last label_pos */
     while(p->next) p = p->next;
+
     p->next = malloc_safe(sizeof(struct label_pos_list));
     p->next->next = NULL;
     p->next->pos = val;
@@ -78,8 +83,10 @@ struct label_list *label_list_add_pos(struct label_list *label, char *name, int 
         if(p->next == NULL) break;
     }
 
+    /* The label does not exist, so create it and add the pos */
     p->next = label_list_alloc(name);
     p->next->pos = label_pos_list_add_pos(p->next->pos, pos);
+
     return label;
 }
 
@@ -101,16 +108,21 @@ struct label_list *label_list_set_base(struct label_list *label, char *name, int
         if(p->next == NULL) break;
     }
 
+    /* The label does not exist, so create it and add the base value */
     p->next = label_list_alloc(name);
     p->next->base = base;
     return label;
 }
 
+/* Characters that are treated as whitespace */
 int isignore(char c)
 {
     return isspace(c) || c == ',';
 }
 
+/* Remove whitespace (as defined by isignore()) from start and end
+ * of string by returning the position of the first non-whitespace
+ * and moving the end of the string to the last non-whitespace. */
 char *trim(char *s)
 {
     char *end;
@@ -132,6 +144,7 @@ char *trim(char *s)
     return s;
 }
 
+/* Get numerical value of register from its name (ra, rb, rc, rd) */
 int get_reg(char *name)
 {
     int i;
@@ -151,6 +164,7 @@ int get_reg(char *name)
     exit(EXIT_FAILURE);
 }
 
+/* Set RAM-value, and check that the value and position is okay. */
 void set_ram(unsigned char *ram, int *pos, int val)
 {
     if(val < 0 || val > 255) {
@@ -164,6 +178,7 @@ void set_ram(unsigned char *ram, int *pos, int val)
     ram[(*pos)++] = (unsigned char)val;
 }
 
+/* Parse a number, either as binary, decimal, hexadecimal, octal, character or label */
 unsigned char get_number(char *s, struct label_list **label, int ram_pos)
 {
     char *p;
@@ -182,6 +197,8 @@ unsigned char get_number(char *s, struct label_list **label, int ram_pos)
     /* Check if number is a label */
     if(s[0] == '$') {
         *label = label_list_add_pos(*label, s+1, ram_pos);
+        /* We return 0 now, and will later set all the label positions to the base value.
+         * This is necessary since the base value might not be set at this point. */
         return 0;
     }
 
@@ -197,19 +214,21 @@ unsigned char get_number(char *s, struct label_list **label, int ram_pos)
             }
         }
         if(bad == 0) {
+            int number = 0;
             for(i = 0; i < 8; i++) {
-                bad |= (s[i] == '1') << (7-i);
+                number |= (s[i] == '1') << (7-i);
             }
-            return (unsigned char)bad;
+            return (unsigned char)number;
         }
     }
 
     /* Parse number normally, see strtol for details */
     val = strtol(s, &p, 0);
     if(*p) {
-        fprintf(stderr, "Expected a number or single char enclosed in \"'\", got '%s'.\n", s);
+        fprintf(stderr, "Expected a number, single char enclosed in \"'\" or label starting with '$', got '%s'.\n", s);
         exit(EXIT_FAILURE);
     }
+
     if(val < 0 || val > 255) {
         fprintf(stderr, "Invalid number: %ld.\n", val);
         exit(EXIT_FAILURE);
@@ -248,7 +267,11 @@ int main(int argc, char *argv[])
         /* Skip empty lines and comments */
         if(tline[0] == '\0' || tline[0] == '#') continue;
 
+        /* Convert line to uppercase and parse character literals. */
         for(i = 0; tline[i]; i++) {
+            /* An ugly way to parse char literals. A char literal is always three chars,
+             * so replace it with a three digit number which will always suffice. I do this
+             * so that the e.g. the char literal ' ' is not misstaken for a space. */
             if(tline[i] == '\'' && tline[i+1] && tline[i+2] == '\'') {
                 sprintf(&tline[i], "%3u", tline[i+1]);
                 i += 2;
@@ -257,6 +280,7 @@ int main(int argc, char *argv[])
             }
         }
 
+        /* Remove comments */
         if((sub1 = strchr(tline, '#'))) {
             *sub1 = '\0';
         }
@@ -264,9 +288,11 @@ int main(int argc, char *argv[])
 
         sub1 = strpbrk(tline, " ,;\t");
         if(sub1) {
+            /* Now tline will be the first word of the line */
             sub1[0] = '\0';
             sub1++;
         }
+        /* If there are more than one word. sub1 will be the second word, sub2 the third. */
         if(sub1) {
             sub1 = trim(sub1);
             sub2 = strpbrk(sub1, " ,;\t");
@@ -300,15 +326,18 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        /* Chech if this is an ALU op */
         for(i = 0; i < COMPUTER_ALU_OP_NR; i++) {
             if(strcmp(computer_alu_op_name[i], tline) == 0) {
                 set_ram(ram, &ram_pos, (unsigned char)(128 + (i<<4) + (get_reg(sub1)<<2) + get_reg(sub2)));
                 break;
             }
         }
+        /* If an ALU op was found, go to next line. */
         if(i < COMPUTER_ALU_OP_NR) continue;
 
-        bad = 0;
+        bad = 0; /* Will be 1 if too many arguments are present on the line. */
+        /* Parse non-ALU ops. */
         if(strcmp(tline, computer_instr_name[COMPUTER_INSTR_LD]) == 0) {
             set_ram(ram, &ram_pos, (unsigned char)((COMPUTER_INSTR_LD << 4) + (get_reg(sub1)<<2) + get_reg(sub2)));
         } else if(strcmp(tline, computer_instr_name[COMPUTER_INSTR_ST]) == 0) {
@@ -371,16 +400,20 @@ int main(int argc, char *argv[])
 
     fclose(in);
 
+    /* Set label positions. */
     {
         struct label_list *p;
 
+        /* Loop over labels. */
         for(p = label; p; p = p->next) {
             struct label_pos_list *q;
 
+            /* If the label position is not set. */
             if(p->base == 0) {
                 fprintf(stderr, "Undefined label '%s'.\n", p->name);
                 exit(EXIT_FAILURE);
             }
+            /* Loop over all positions. */
             for(q = p->pos; q; q = q->next) {
                 ram[q->pos] = (unsigned char)p->base;
             }
@@ -391,6 +424,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Could not open '%s' for writing.\n", argv[2]);
         exit(EXIT_FAILURE);
     }
+
+    /* Write RAM-data to out-file. */
     for(i = 0; i < ram_pos; i++) {
         if(fputc(ram[i], out) == EOF) {
             fprintf(stderr, "Could not write to '%s'.\n", argv[2]);

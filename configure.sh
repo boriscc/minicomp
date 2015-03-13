@@ -37,6 +37,8 @@ echo >> $conf_tmp
 
 echo "#endif" >> $conf_tmp
 
+echo "CFLAGS += -DHAVE_CONFIG_H" >> $minc
+
 if ! cmp $conf_tmp $conf > /dev/null 2>&1
 then mv $conf_tmp $conf
 else rm $conf_tmp

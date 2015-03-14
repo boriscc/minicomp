@@ -20,9 +20,8 @@ set_correct: # Generate the correct code
   st   rc ra
   add  rb rc
   ld   rc ra
-  or   ra ra
-  jz   $set_correct_done
-  jmp  $set_correct
+  cmp  rb ra
+  je   $set_correct
 
 # need: none
 set_correct_done:
@@ -33,49 +32,45 @@ new_guess: # Prompt the user for the next guess
   outd rb
   shr  ra ra
   outa ra # keyboard
+  data rc 11010000 # -'0'
   data rd $guess
+# Will use that rc = -'0' and rd = $guess
 next_sub_guess: # Prompt the user for the next digit
+  clf  # Needed to clear the carry flag in the add rc ra line
   ind  ra # Get key
-  or   ra ra
+  add  rc ra
   jz   $next_sub_guess
-  data rb '6'
+  data rb 6
   cmp  ra rb
   ja   $next_sub_guess
-  data rb '1'
-  cmp  rb ra
-  ja   $next_sub_guess
-  data rc 11010000 # -'0'
-  add  rc ra
-  clf
-  add  rc rb # rb = 1
-  clf
+  data rb 1
   st   rd ra
   add  rb rd
-  ld   rd rb
-  or   rb rb
-  jz   $guess_done
-  jmp  $next_sub_guess
+  ld   rd ra
+  cmp  ra rb
+  jae  $next_sub_guess
 
+# Will use rb = 1, rd = $guess + 4
 guess_done:
-  data ra 3
-  outa ra # integer printer
-  data rd $guess
-  data rb 1
+  data rc 3
+  outa rc # integer printer
+  data ra $guess
 print_next_guess: # Print the guess the user made
-  ld   rd rc
-  or   rc rc
-  jz   $print_guess_done
+  ld   ra rc
   outd rc
-  add  rb rd
-  jmp  $print_next_guess
+  add  rb ra
+  cmp  rd ra
+  ja   $print_next_guess
 
+# Use rb = 1
 print_guess_done:
-  shl  rb rb
-  outa rb # ascii printer
+  shl  rb ra # ra = 2
+  outa ra # ascii printer
   data rc '-'
   outd rc
   data rc '>'
   outd rc
+  add  rb ra # ra = 3
   outa ra # integer printer
 
   # ra will be used as index
@@ -192,20 +187,18 @@ calc_nr_correct_done:
   # Print new line
     data rc 10
     outd rc
-  # See if game is lost
+  # See if more guesses are allowed
     add  ra rc
-    cmp  rb rc
-    je   $game_lost
-  # New guess
-    jmp  $new_guess
+    cmp  rc rb
+    ja   $new_guess
 
-game_won:
-# Here, (ra, rb, rc, rd) = (4, 0, 4, 1)
-  data ra $win_msg
-  jmp  $game_end
 game_lost:
 # Here, (ra, rb, rc, rd) = (2, 12, 12, 1)
   data ra $lose_msg
+  jmp  $game_end
+game_won:
+# Here, (ra, rb, rc, rd) = (4, 0, 4, 1)
+  data ra $win_msg
 game_end:
   shl  rd rc
   outa rc # ascii printer

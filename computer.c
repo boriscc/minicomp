@@ -31,22 +31,24 @@ int computer_is_running(computer *comp)
     return comp->is_running;
 }
 
-unsigned char get_flag(unsigned char flag, unsigned char pos)
+static unsigned char get_flag(unsigned char flag, unsigned char pos)
 {
     return (flag >> pos) & 1;
 }
 
-void set_flag(unsigned char *flag, unsigned char pos)
+static void set_flag(unsigned char *flag, unsigned char pos)
 {
     *flag |= (unsigned char)(1 << pos);
 }
 
-void unset_flag(unsigned char *flag, unsigned char pos)
+/*
+static void unset_flag(unsigned char *flag, unsigned char pos)
 {
     *flag &= (unsigned char)(~(1 << pos));
 }
+*/
 
-void alu_comp(unsigned char a, unsigned char b, unsigned char carry_in, unsigned char op, unsigned char *c, unsigned char *flag)
+static void alu_comp(unsigned char a, unsigned char b, unsigned char carry_in, unsigned char op, unsigned char *c, unsigned char *flag)
 {
     *flag = 0;
     if(a > b) {

@@ -32,7 +32,7 @@ if [ "$debug" == "1" ]; then
 fi
 
 echo -n "#define MINICOMP_VERSION \"" >> $conf_tmp
-(git describe --dirty 2>/dev/null || echo 0) | tr '\n' '"' >> $conf_tmp
+(git describe --dirty --always 2>/dev/null || echo 0) | tr '\n' '"' >> $conf_tmp
 echo >> $conf_tmp
 
 echo "#endif" >> $conf_tmp

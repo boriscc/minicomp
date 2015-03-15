@@ -33,7 +33,11 @@ struct arguments {
     char *ram_file;
 };
 
-static struct arguments gs_arg = { 1000, 0, NULL };
+static struct arguments gs_arg = {
+#ifdef HAVE_TIMING
+    1000,
+#endif
+    0, NULL };
 
 char const *argp_program_version = "simulator " MINICOMP_VERSION;
 char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";

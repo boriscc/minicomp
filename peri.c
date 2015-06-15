@@ -15,7 +15,7 @@ int my_getch()
 {
     char buf = 0;
 
-    struct termios old = { 0 };
+    struct termios old;
     struct termios tmp;
 
     if(tcgetattr(0, &old) < 0) {

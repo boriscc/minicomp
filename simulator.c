@@ -21,7 +21,7 @@
 #endif
 
 #ifndef HAVE_NCURSES
-    static struct termios gs_term_old = { 0 };
+    static struct termios gs_term_old;
     static struct termios gs_term_cur;
 #endif
 

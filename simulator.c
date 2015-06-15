@@ -29,6 +29,7 @@ struct arguments {
 #ifdef HAVE_TIMING
     double frequency;
 #endif
+    int fast;
     int print_total_clock_cycles;
     char *ram_file;
 };
@@ -37,7 +38,7 @@ static struct arguments gs_arg = {
 #ifdef HAVE_TIMING
     1000,
 #endif
-    0, NULL };
+    0, 0, NULL };
 
 char const *argp_program_version = "simulator " MINICOMP_VERSION;
 char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";
@@ -49,6 +50,7 @@ static struct argp_option gs_argp_options[] = {
 #ifdef HAVE_TIMING
     { "frequency", 'f', "N", 0, "Set clock frequency. Default 1000", 0 },
 #endif
+    { "fast", 'F', NULL, 0, "Fast simulation (will ignore frequency)", 0 },
     { "print-total-cycles", 'T', NULL, 0, "Print final elapsed clock cycles", 0 },
     { "no-print-total-cycles", 't', NULL, OPTION_HIDDEN, "Print final elapsed clock cycles", 0 },
     { 0, 0, 0, 0, 0, 0 }
@@ -65,6 +67,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
             if(arguments->frequency <= 0) argp_usage(state);
             break;
 #endif
+        case 'F':
+            arguments->fast = 1;
+            break;
         case 't':
             arguments->print_total_clock_cycles = 0;
             break;
@@ -146,7 +151,6 @@ int main(int argc, char *argv[])
 #ifdef HAVE_TIMING
     double cycle_time;
 #endif
-    unsigned long clock_cycle = 0;
 
 #ifdef HAVE_SIGNAL
     if(signal(SIGINT, sig_handler) == SIG_ERR) {
@@ -178,19 +182,24 @@ int main(int argc, char *argv[])
         fclose(fp);
     }
 
-    while(computer_is_running(&comp)) {
+    if(gs_arg.fast) {
+        while(computer_is_running(&comp)) {
+            computer_step_instruction_fast(&comp);
+        }
+    } else {
+        while(computer_is_running(&comp)) {
 #ifdef HAVE_TIMING
-        double cycle_start = time_now();
+            double cycle_start = time_now();
 #endif
-        computer_step_cycle(&comp);
-        clock_cycle++;
+            computer_step_cycle(&comp);
 #ifdef HAVE_TIMING
-        while(time_now() < cycle_start + cycle_time);
+            while(time_now() < cycle_start + cycle_time);
 #endif
+        }
     }
 
     if(gs_arg.print_total_clock_cycles) {
-        printf("Total clock-cycles: %ld.\n", clock_cycle);
+        printf("Total clock-cycles: %ld.\n", comp.clock_cycle);
     }
 
 clean:

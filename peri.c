@@ -103,6 +103,66 @@ void peri_integer_printer_output(computer *comp, unsigned char i)
 #endif
 }
 
+void peri_integer16_printer_output(computer *comp, unsigned char i)
+{
+    static unsigned long len = 0;
+    static unsigned long num = 0;
+
+    num += (unsigned long)i << (8*len);
+    len++;
+    if(len == 2) {
+#ifdef HAVE_NCURSES
+        printw("%ld", num);
+        refresh();
+#else
+        printf("%ld", num);
+        fflush(stdout);
+#endif
+        len = 0;
+        num = 0;
+    }
+}
+
+void peri_integer24_printer_output(computer *comp, unsigned char i)
+{
+    static unsigned long len = 0;
+    static unsigned long num = 0;
+
+    num += (unsigned long)i << (8*len);
+    len++;
+    if(len == 3) {
+#ifdef HAVE_NCURSES
+        printw("%ld", num);
+        refresh();
+#else
+        printf("%ld", num);
+        fflush(stdout);
+#endif
+        len = 0;
+        num = 0;
+    }
+}
+
+void peri_integer32_printer_output(computer *comp, unsigned char i)
+{
+    static unsigned long len = 0;
+    static unsigned long num = 0;
+
+    num += (unsigned long)i << (8*len);
+    len++;
+    if(len == 4) {
+#ifdef HAVE_NCURSES
+        printw("%ld", num);
+        refresh();
+#else
+        printf("%ld", num);
+        fflush(stdout);
+#endif
+        len = 0;
+        num = 0;
+    }
+}
+
 void peri_terminate_output(computer *comp, unsigned char c)
 {
     comp->is_running = 0;

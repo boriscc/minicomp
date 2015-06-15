@@ -22,6 +22,9 @@ void computer_reset(computer *comp)
     comp->io_input[PERI_ADDR_KEYBOARD] = peri_keyboard_buffered_input;
     comp->io_output[PERI_ADDR_ASCII_PRINTER] = peri_ascii_printer_output;
     comp->io_output[PERI_ADDR_INTEGER_PRINTER] = peri_integer_printer_output;
+    comp->io_output[PERI_ADDR_INTEGER16_PRINTER] = peri_integer16_printer_output;
+    comp->io_output[PERI_ADDR_INTEGER24_PRINTER] = peri_integer24_printer_output;
+    comp->io_output[PERI_ADDR_INTEGER32_PRINTER] = peri_integer32_printer_output;
     comp->io_output[PERI_ADDR_TERMINATE] = peri_terminate_output;
     comp->io_input[PERI_ADDR_RANDOM] = peri_random_input;
 }
@@ -202,5 +205,185 @@ void computer_step_instruction(computer *comp)
     for(i = 0; i < step_nr; i++) {
         computer_step_cycle(comp);
     }
+}
+
+static void fast_ADD(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+    int sum = va + vb + get_flag(comp->flags, COMPUTER_FLAG_CARRY);
+
+    comp->reg[b] = (unsigned char)(sum);
+    comp->flags = 0;
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(sum > 255) set_flag(&flags, COMPUTER_FLAG_CARRY);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_SHR(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+    int carry_in = get_flag(comp->flags, COMPUTER_FLAG_CARRY);
+    comp->reg[b] = (unsigned char)((va >> 1) + (carry_in << 7));
+
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(va & 1) set_flag(&flags, COMPUTER_FLAG_CARRY);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_SHL(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+    int carry_in = get_flag(comp->flags, COMPUTER_FLAG_CARRY);
+
+    comp->reg[b] = (unsigned char)((va << 1) + carry_in);
+
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(va & 128) set_flag(&flags, COMPUTER_FLAG_CARRY);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_NOT(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+
+    comp->reg[b] = (unsigned char)~va;
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_AND(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+
+    comp->reg[b] = (unsigned char)(va & vb);
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_OR(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+
+    comp->reg[b] = (unsigned char)(va | vb);
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_XOR(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+
+    comp->reg[b] = (unsigned char)(va ^ vb);
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    if(comp->reg[b] == 0) set_flag(&flags, COMPUTER_FLAG_ZERO);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_CMP(computer *comp, int a, int b)
+{
+    int va = comp->reg[a];
+    int vb = comp->reg[b];
+    unsigned char flags = 0;
+
+    if(va > vb) set_flag(&flags, COMPUTER_FLAG_A_LARGER);
+    if(va == vb) set_flag(&flags, COMPUTER_FLAG_EQUAL);
+    comp->flags = (unsigned char)flags;
+}
+
+static void fast_LD(computer *comp, int a, int b)
+{
+    comp->reg[b] = (unsigned char)(comp->ram[comp->reg[a]]);
+}
+
+static void fast_ST(computer *comp, int a, int b)
+{
+    comp->ram[comp->reg[a]] = (unsigned char)(comp->reg[b]);
+}
+
+static void fast_DATA(computer *comp, int a, int b)
+{
+    comp->iar = (unsigned char)(comp->iar + 1);
+    comp->reg[b] = comp->ram[comp->iar];
+}
+
+static void fast_JMPR(computer *comp, int a, int b)
+{
+    comp->iar = (unsigned char)(comp->reg[b] - 1);
+}
+
+static void fast_JMP(computer *comp, int a, int b)
+{
+    comp->iar = (unsigned char)(comp->ram[(unsigned char)(comp->iar + 1)] - 1);
+}
+
+static void fast_JCAEZ(computer *comp, int a, int b)
+{
+    if(comp->flags & ((a << 2) + b)) {
+        comp->iar = (unsigned char)(comp->ram[(unsigned char)(comp->iar + 1)] - 1);
+    } else {
+        comp->iar = (unsigned char)(comp->iar + 1);
+    }
+}
+
+static void fast_CLF(computer *comp, int a, int b)
+{
+    comp->flags = 0;
+}
+
+static void fast_IO(computer *comp, int a, int b)
+{
+    if(a == 0) {
+        comp->io_input[comp->io_addr](comp, &comp->reg[b]);
+    } else if(a == 1) {
+        comp->reg[b] = comp->io_addr;
+    } else if(a == 2) {
+        comp->io_output[comp->io_addr](comp, comp->reg[b]);
+    } else {
+        comp->io_addr = comp->reg[b];
+    }
+}
+
+static void (*fast_func[16])(computer *, int, int) = {
+    fast_LD, fast_ST, fast_DATA, fast_JMPR,
+    fast_JMP, fast_JCAEZ, fast_CLF, fast_IO,
+    fast_ADD, fast_SHR, fast_SHL, fast_NOT,
+    fast_AND, fast_OR, fast_XOR, fast_CMP };
+
+void computer_step_instruction_fast(computer *comp)
+{
+    unsigned char iar = comp->iar;
+    unsigned char op = comp->ram[iar];
+
+    fast_func[op >> 4](comp, (op >> 2) & 3, op & 3);
+    
+    comp->iar = (unsigned char)(comp->iar + 1);
+    comp->clock_cycle += 6;
 }
 

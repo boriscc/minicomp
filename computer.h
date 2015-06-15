@@ -61,6 +61,7 @@ int computer_is_running(computer *comp);
 void computer_step_cycle(computer *comp);
 /* Step an entire instruction */
 void computer_step_instruction(computer *comp);
+void computer_step_instruction_fast(computer *comp);
 
 #endif
 

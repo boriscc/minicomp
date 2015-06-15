@@ -85,7 +85,7 @@ static void alu_comp(unsigned char a, unsigned char b, unsigned char carry_in, u
         /* Do nothing */
     }
 
-    if(*c == 0) set_flag(flag, COMPUTER_FLAG_ZERO);
+    if(op != COMPUTER_ALU_CMP && *c == 0) set_flag(flag, COMPUTER_FLAG_ZERO);
 }
 
 void computer_step_cycle(computer *comp)

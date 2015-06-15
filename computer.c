@@ -10,7 +10,7 @@ char const *computer_reg_name[COMPUTER_REG_NR] = {
     "RA", "RB", "RC", "RD" };
 
 char const *computer_alu_op_name[COMPUTER_ALU_OP_NR] = {
-    "ADD", "SHL", "SHR", "NOT", "AND", "OR", "XOR", "CMP" };
+    "ADD", "SHR", "SHL", "NOT", "AND", "OR", "XOR", "CMP" };
 
 char const *computer_instr_name[COMPUTER_INSTR_NR] = {
     "LD", "ST", "DATA", "JMPR", "JMP", "JXXX", "CLF", "IO" };

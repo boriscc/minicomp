@@ -42,47 +42,50 @@ start_divisor: # Uses CARRY_FLAG_UNSET
     ld   rc rd # rd = **prime_list_index = divisor
     and  rd rd
     jz   $print_prime # End of the list, so is a prime
+    data rc $cur_divisor
+    st   rc rd
 
+    # prime_index is a pointer to the current 
+    # byte of the (prime) number to test, starting with
+    # the most significant byte
     data rd $prime_index
     st   rd rd # *prime_index = $prime_index
     xor  rb rb # rb = remainder = 0
 
 # See if divisor divides the prime, by calculating the remainder
 start_long_div: # Uses rb = remainder
-    clf
+    clf # Get rid of carry
+
     data ra 1
     data rc $prime_index
     ld   rc rd # rd = *prime_index
     add  ra rd # rd += 1
     st   rc rd # *prime_index += 1
+
     data rc $prime0
     cmp  rd rc
-    ja   $end_log_div
+    ja   $end_long_div
+    # prime_pos has a 1 at the current bit
     data rc 10000000 # rc = prime_pos
 
+# Start on the next bit in the current byte of the (prime) number
 next_bit: # Uses rb = remainder, rc = prime_pos
     xor  ra ra # ra = overflow = 0
     shl  rb rb # rb *= 2
-    add  ra ra # ra = carry from shl
-    data rd $got_overflow
-    st   rd ra
+    add  ra ra # ra = carry from shl = overflow
 
     data rd $prime_index
     ld   rd rd # rd = *prime_index
     ld   rd rd # rd = **prime_index = prime
     and  rc rd # prime_pos & prime
+    data rd 1
     jz   $done_setting
-set_to_one:
-    data rd 1
+set_to_one: # Uses ra = overflow, rb = remainder, rc = prime_pos, rd = 1
     or   rd rb # rb |= 1
-done_setting: # Uses rb = remainder, rc = prime_pos
-    data ra $got_overflow
-    ld   ra ra # ra = *got_overflow
-    data rd 1
+done_setting: # Uses ra = overflow, rb = remainder, rc = prime_pos, rd = 1
     cmp  ra rd
-    data ra $prime_list_index
-    ld   ra ra # ra = *prime_list_index
-    ld   ra ra # ra = **prime_list_index = divisor = xxxxxxx1
+    data ra $cur_divisor
+    ld   ra ra # ra = *cur_divisor
     je   $subtract_divisor
     cmp  rb ra
     jae  $subtract_divisor
@@ -96,7 +99,7 @@ remainder_updated: # Uses rb = remainder, rc = prime_pos
     shr  rc rc
     jc   $start_long_div
     jmp  $next_bit
-end_log_div: # Uses rb = remainder
+end_long_div: # Uses rb = remainder
     and  rb rb
     jz   $start_prime
     jmp  $start_divisor
@@ -121,7 +124,7 @@ done:
   outa rd # Power button
   outd rd
 
-got_overflow:
+cur_divisor:
 . 0
 prime_index:
 . 0

@@ -60,13 +60,29 @@ start_long_div: # Uses rb = remainder
     data rc $prime_index
     ld   rc rd # rd = *prime_index
     add  ra rd # rd += 1
-    st   rc rd # *prime_index += 1
 
-    data rc $prime0
-    cmp  rd rc
+    data ra $prime0
+    cmp  rd ra
     ja   $end_long_div
+
+    st   rc rd # *prime_index += 1
+    ld   rd rc # rc = **prime_index = prime
+    data ra $cur_prime_byte
+    st   ra rc
+
     # prime_pos has a 1 at the current bit
     data rc 10000000 # rc = prime_pos
+
+# Decrease rc as low as possible
+    data ra $prime1
+    cmp  rd ra
+    ja   $next_bit
+    ld   ra ra # ra = *prime1
+optimize_prime_pos:
+    cmp  ra rc
+    jae  $next_bit
+    shr  rc rc
+    jmp  $optimize_prime_pos
 
 # Start on the next bit in the current byte of the (prime) number
 next_bit: # Uses rb = remainder, rc = prime_pos
@@ -74,9 +90,8 @@ next_bit: # Uses rb = remainder, rc = prime_pos
     shl  rb rb # rb *= 2
     add  ra ra # ra = carry from shl = overflow
 
-    data rd $prime_index
-    ld   rd rd # rd = *prime_index
-    ld   rd rd # rd = **prime_index = prime
+    data rd $cur_prime_byte
+    ld   rd rd # rd = *cur_prime_byte
     and  rc rd # prime_pos & prime
     data rd 1
     jz   $done_setting
@@ -124,6 +139,8 @@ done:
   outa rd # Power button
   outd rd
 
+cur_prime_byte:
+. 0
 cur_divisor:
 . 0
 prime_index:

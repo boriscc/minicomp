@@ -16,20 +16,26 @@ or   rc rb # rb = 3
 jmp $print_list
 
 start_prime: # No register value assumptions
+  # Increase LSB of current (prime) number and update prime_add
+  data rb $prime_add
+  ld   rb rd # rd = current add
+  data ra 6 # 0000 0110
+  xor  rd ra # ra: 2->4 , 4->2 = next add
+  st   rb ra # store next add
   data rb $prime0
   ld   rb ra
-  data rd 2
   xor  rc rc # Must be done before the add, since I want to use the carry from the add
   add  rd ra
-  st   rb ra # *prime0 += 2
+  st   rb ra # *prime0 += 2 or 4
 
+  # Increase MSB of current (prime) number
   data rb $prime1
   ld   rb ra
   add  rc ra # Uses carry from previous add
-  st   rb ra # *prime1 +=[WITH_CARRY] 0
   jc   $done
+  st   rb ra # *prime1 +=[WITH_CARRY] 0
 
-  data ra $prime_list_all
+  data ra $prime_list_at_three
   data rb $prime_list_index
   st   rb ra
 
@@ -139,6 +145,8 @@ done:
   outa rd # Power button
   outd rd
 
+prime_add:
+. 4
 cur_prime_byte:
 . 0
 cur_divisor:
@@ -148,11 +156,12 @@ prime_index:
 prime1:
 . 0
 prime0:
-. 255
+. 253
 prime_list_index:
 . 0
 prime_list_all:
 . 2
+prime_list_at_three:
 . 3
 . 5
 . 7

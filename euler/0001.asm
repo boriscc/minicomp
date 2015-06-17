@@ -4,6 +4,7 @@
 
 # Solution: starting with n = 3, add cyclically 2,1,3,1,2,3,3 until >= 1000 = 00000011 11101000
 # n is 16-bit, sum is 24-bit
+# Runs in 20368 instructions
 
 start:
 # Add num to sum

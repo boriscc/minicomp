@@ -1,12 +1,13 @@
-# This program will take forever, but theoretically it will print
+# This program will take a very long time, but theoretically it will print
 # all primes < 2^32 = 4,294,967,296. The idea is:
 #   print 2
-#   for n = 3 to 2^32-1, step 2
-#       for m = 3 to min(n-1, 2^16-1), step 2
+#   print 3
+#   for n = 5 to 2^32-1, alternating step 2 and 4
+#       for m = 5 to min(n-1, 2^16-1), alternating step 2 and 4
 #           if n % m == 0: not prime, test next n
 #       print n
 #   exit
-# For git version xxx, I made the following estimates for this program:
+# For git version d1ecada, I made the following estimates for this program:
 # Total number of clock-cycles: 2.957e+13
 # Clock-cycles per natural number: 6.885e+03
 # Clock-cycles per tested number: 2.065e+04

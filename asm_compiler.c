@@ -386,7 +386,20 @@ int main(int argc, char *argv[])
         /* Label */
         if(tline[strlen(tline) - 1] == ':') {
             tline[strlen(tline) - 1] = '\0';
-            label = label_list_set_base(label, tline, ram_pos);
+            if(strlen(tline)) {
+                if(tline[strlen(tline) - 1] == ':') {
+                    tline[strlen(tline) - 1] = '\0';
+                    if(strlen(tline)) {
+                        label = label_list_set_base(label, tline, ram_pos + 1);
+                    } else {
+                        report_error("Too short label name (0 chars)");
+                    }
+                } else {
+                    label = label_list_set_base(label, tline, ram_pos);
+                }
+            } else {
+                report_error("Too short label name (0 chars)");
+            }
             continue;
         }
 

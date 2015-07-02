@@ -412,6 +412,31 @@ int main(int argc, char *argv[])
             continue;
         }
 
+        /* Check if the line is a PRAGMA line */
+        if(strcmp(tline, "PRAGMA") == 0) {
+            if(sub1 == NULL) {
+                report_error("Bad format: Expected a pragma type: \"POS\"");
+            }
+            if(strcmp(sub1, "POS") == 0) {
+                unsigned char requested_pos;
+
+                if(sub2 == NULL) {
+                    report_error("Expected numerical position after pragma pos");
+                }
+
+                requested_pos = get_number(sub2, &label, ram_pos);
+                if(requested_pos == 0) {
+                    report_error("pragma pos cannot be a label or the position 0");
+                }
+                if(ram_pos != requested_pos) {
+                    report_error("pragma pos mismatch: requested(%d) != actual(%d)", requested_pos, ram_pos);
+                }
+            } else {
+                report_error("Unknown pragma \"%s\"", sub1);
+            }
+            continue;
+        }
+
         /* Chech if this is an ALU op */
         for(i = 0; i < COMPUTER_ALU_OP_NR; i++) {
             if(strcmp(computer_alu_op_name[i], tline) == 0) {

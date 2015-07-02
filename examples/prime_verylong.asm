@@ -74,7 +74,7 @@ next_n: # REG: (*, *, *, *), FLAG: C UNSET, REST *
   data ra 38 # 2 * $n0
   shl  rb rb # needed since 2*addr will be compared to rb
 add_again:
-  shr  ra ra
+  shr  ra ra # restore ra and set carry
   ld   ra rc
   add  rd rc
   st   ra rc
@@ -84,10 +84,12 @@ add_again:
   xor  rd rd
   cmp  ra rb
   ja   $add_again
-  shr  ra ra # to set carry
 
   # Terminate if overflow
-  jc   $done
+  # This works since rb will be larger than ra only if
+  # ra has a carry in the LSB from the last add.
+  cmp  rb ra
+  ja   $done
 
   # Here rc = *n3
   data rb $n2

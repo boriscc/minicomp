@@ -31,6 +31,8 @@ struct arguments {
 #endif
     int fast;
     int print_total_clock_cycles;
+    int batch_mode;
+    unsigned long print_interval;
     char *ram_file;
 };
 
@@ -38,7 +40,7 @@ static struct arguments gs_arg = {
 #ifdef HAVE_TIMING
     1000,
 #endif
-    0, 0, NULL };
+    0, 0, 0, 0, NULL };
 
 char const *argp_program_version = "simulator " MINICOMP_VERSION;
 char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";
@@ -51,8 +53,12 @@ static struct argp_option gs_argp_options[] = {
     { "frequency", 'f', "N", 0, "Set clock frequency. Default 1000", 0 },
 #endif
     { "fast", 'F', NULL, 0, "Fast simulation (will ignore frequency)", 0 },
+    { "print-cycles", 'C', "N", 0, "Print elapsed cycles every N cycles", 0 },
+    { "no-print-cycles", 'c', NULL, OPTION_HIDDEN, "Print elapsed cycles every N cycles", 0 },
     { "print-total-cycles", 'T', NULL, 0, "Print final elapsed clock cycles", 0 },
     { "no-print-total-cycles", 't', NULL, OPTION_HIDDEN, "Print final elapsed clock cycles", 0 },
+    { "batch-mode", 'B', NULL, 0, "Enable batch mode (no tty fiddling)", 0 },
+    { "no-batch-mode", 'b', NULL, OPTION_HIDDEN, "Enable batch mode (no tty fiddling)", 0 },
     { 0, 0, 0, 0, 0, 0 }
 };
 
@@ -70,11 +76,23 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         case 'F':
             arguments->fast = 1;
             break;
+        case 'C':
+            arguments->print_interval = (unsigned long)strtol(arg, NULL, 10);
+            break;
+        case 'c':
+            arguments->print_interval = 0;
+            break;
         case 't':
             arguments->print_total_clock_cycles = 0;
             break;
         case 'T':
             arguments->print_total_clock_cycles = 1;
+            break;
+        case 'b':
+            arguments->batch_mode = 0;
+            break;
+        case 'B':
+            arguments->batch_mode = 1;
             break;
         case ARGP_KEY_ARG:
             if(state->arg_num == 0) arguments->ram_file = arg;
@@ -108,18 +126,20 @@ static void init_screen()
     timeout(0);
     noecho();
 #else
-    if(tcgetattr(0, &gs_term_old) < 0) {
-        perror("tcgetattr");
-    }
-    gs_term_cur = gs_term_old;
+    if(gs_arg.batch_mode == 0) {
+        if(tcgetattr(0, &gs_term_old) < 0) {
+            perror("tcgetattr");
+        }
+        gs_term_cur = gs_term_old;
 
-    gs_term_cur.c_lflag &= (tcflag_t)~ICANON;
-    gs_term_cur.c_lflag &= (tcflag_t)~ECHO;
-    gs_term_cur.c_cc[VMIN] = 0;
-    gs_term_cur.c_cc[VTIME] = 0;
+        gs_term_cur.c_lflag &= (tcflag_t)~ICANON;
+        gs_term_cur.c_lflag &= (tcflag_t)~ECHO;
+        gs_term_cur.c_cc[VMIN] = 0;
+        gs_term_cur.c_cc[VTIME] = 0;
 
-    if(tcsetattr(0, TCSANOW, &gs_term_cur) < 0) {
-        perror("tcsetattr ICANON");
+        if(tcsetattr(0, TCSANOW, &gs_term_cur) < 0) {
+            perror("tcsetattr ICANON");
+        }
     }
 #endif
 }
@@ -129,8 +149,10 @@ static void finalize_screen()
 #ifdef HAVE_NCURSES
     endwin();
 #else
-    if(tcsetattr(0, TCSADRAIN, &gs_term_old) < 0) {
-        perror ("tcsetattr ~ICANON");
+    if(gs_arg.batch_mode == 0) {
+        if(tcsetattr(0, TCSADRAIN, &gs_term_old) < 0) {
+            perror ("tcsetattr ~ICANON");
+        }
     }
 #endif
 }
@@ -183,8 +205,19 @@ int main(int argc, char *argv[])
     }
 
     if(gs_arg.fast) {
-        while(computer_is_running(&comp)) {
-            computer_step_instruction_fast(&comp);
+        if(gs_arg.print_interval) {
+            unsigned long last_print = 0;
+            while(computer_is_running(&comp)) {
+                if(last_print + gs_arg.print_interval <= comp.clock_cycle) {
+                    printf("clock-cycles: %ld\n", comp.clock_cycle);
+                    last_print = comp.clock_cycle;
+                }
+                computer_step_instruction_fast(&comp);
+            }
+        } else {
+            while(computer_is_running(&comp)) {
+                computer_step_instruction_fast(&comp);
+            }
         }
     } else {
         while(computer_is_running(&comp)) {

@@ -178,11 +178,11 @@ static void finalize()
         int i;
         
         printf("--- Profiling information ---\n");
-        printf("%3s: %10s %20s %7s\n", "pos", "instr.", "count", "percent");
+        printf("%3s: %-10s %20s %7s\n", "pos", "instr.", "count", "percent");
         for(i = 0; i < COMPUTER_RAM_SIZE; i++) {
             char name[10];
             computer_get_instruction_name(gs_comp.ram[i], name);
-            printf("%03d: %10s %20lu %6.2f%%\n", i, name, gs_profile_count[i], 600 * (double)gs_profile_count[i] / gs_comp.clock_cycle);
+            printf("%03d: %-10s %20lu %6.2f%%\n", i, name, gs_profile_count[i], 600 * (double)gs_profile_count[i] / (double)gs_comp.clock_cycle);
         }
     }
     finalize_screen();
@@ -238,12 +238,12 @@ int main(int argc, char *argv[])
         if(gs_arg.print_interval || gs_arg.profile) {
             unsigned long last_print = 0;
             while(computer_is_running(&gs_comp)) {
-                if(last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
+                if(gs_arg.print_interval && last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
                     printf("clock-cycles: %ld\n", gs_comp.clock_cycle);
                     last_print = gs_comp.clock_cycle;
                 }
                 if(gs_arg.profile) {
-                    gs_profile_count[comp.iar]++;
+                    gs_profile_count[gs_comp.iar]++;
                 }
                 computer_step_instruction_fast(&gs_comp);
             }
@@ -260,12 +260,14 @@ int main(int argc, char *argv[])
 #endif
             computer_step_cycle(&gs_comp);
             
-            if(last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
-                printf("clock-cycles: %ld\n", gs_comp.clock_cycle);
-                last_print = gs_comp.clock_cycle;
+            if(gs_arg.print_interval) {
+                if(last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
+                    printf("clock-cycles: %ld\n", gs_comp.clock_cycle);
+                    last_print = gs_comp.clock_cycle;
+                }
             }
             if(gs_arg.profile) {
-                gs_profile_count[comp.iar]++;
+                gs_profile_count[gs_comp.iar]++;
             }
             
 #ifdef HAVE_TIMING

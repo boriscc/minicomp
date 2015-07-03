@@ -489,7 +489,7 @@ int main(int argc, char *argv[])
                         break;
                     }
                 }
-                if(j < COMPUTER_FLAG_NR) {
+                if(j == COMPUTER_FLAG_NR) {
                     report_error("Unknown instruction \"%s\"", tline);
                 }
             }

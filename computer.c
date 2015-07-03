@@ -1,6 +1,7 @@
 #include "computer.h"
 #include "peri.h"
 #include <string.h>
+#include <stdio.h>
 #include "config_impl.h"
 #ifdef HAVE_NCURSES
 #   include <ncurses.h>
@@ -410,7 +411,7 @@ void computer_get_instruction_name(unsigned char instruction, char *name)
             int pos = 1;
             int i;
             int flags = (a << 2) + b;
-            sprintf(name, "J   ");
+            sprintf(name, "J    ");
             for(i = 0; i < COMPUTER_FLAG_NR; i++) {
                 if(flags & (1 << i)) {
                     name[pos++] = computer_flag_name[i];
@@ -421,6 +422,7 @@ void computer_get_instruction_name(unsigned char instruction, char *name)
             int da = a & 1;
             int pos = 0;
             
+            sprintf(name, "       ");
             if(io == COMPUTER_IO_INPUT) {
                 name[pos++] = 'I';
                 name[pos++] = 'N';

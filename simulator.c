@@ -20,6 +20,9 @@
 #   endif
 #endif
 
+static computer gs_comp;
+static unsigned long gs_profile_count[COMPUTER_RAM_SIZE] = { 0 };
+
 #ifndef HAVE_NCURSES
     static struct termios gs_term_old;
     static struct termios gs_term_cur;
@@ -32,6 +35,7 @@ struct arguments {
     int fast;
     int print_total_clock_cycles;
     int batch_mode;
+    int profile;
     unsigned long print_interval;
     char *ram_file;
 };
@@ -40,7 +44,7 @@ static struct arguments gs_arg = {
 #ifdef HAVE_TIMING
     1000,
 #endif
-    0, 0, 0, 0, NULL };
+    0, 0, 0, 0, 0, NULL };
 
 char const *argp_program_version = "simulator " MINICOMP_VERSION;
 char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";
@@ -59,6 +63,8 @@ static struct argp_option gs_argp_options[] = {
     { "no-print-total-cycles", 't', NULL, OPTION_HIDDEN, "Print final elapsed clock cycles", 0 },
     { "batch-mode", 'B', NULL, 0, "Enable batch mode (no tty fiddling)", 0 },
     { "no-batch-mode", 'b', NULL, OPTION_HIDDEN, "Enable batch mode (no tty fiddling)", 0 },
+    { "profile", 'P', NULL, 0, "Print profile information at the end", 0 },
+    { "no-profile", 'p', NULL, OPTION_HIDDEN, "Print profile information at the end", 0 },
     { 0, 0, 0, 0, 0, 0 }
 };
 
@@ -93,6 +99,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
             break;
         case 'B':
             arguments->batch_mode = 1;
+            break;
+        case 'p':
+            arguments->profile = 0;
+            break;
+        case 'P':
+            arguments->profile = 1;
             break;
         case ARGP_KEY_ARG:
             if(state->arg_num == 0) arguments->ram_file = arg;
@@ -157,11 +169,30 @@ static void finalize_screen()
 #endif
 }
 
+static void finalize()
+{
+    if(gs_arg.print_total_clock_cycles) {
+        printf("Total clock-cycles: %ld.\n", gs_comp.clock_cycle);
+    }
+    if(gs_arg.profile) {
+        int i;
+        
+        printf("--- Profiling information ---\n");
+        printf("%3s: %10s %20s %7s\n", "pos", "instr.", "count", "percent");
+        for(i = 0; i < COMPUTER_RAM_SIZE; i++) {
+            char name[10];
+            computer_get_instruction_name(gs_comp.ram[i], name);
+            printf("%03d: %10s %20lu %6.2f%%\n", i, name, gs_profile_count[i], 600 * (double)gs_profile_count[i] / gs_comp.clock_cycle);
+        }
+    }
+    finalize_screen();
+}
+
 #ifdef HAVE_SIGNAL
 static void sig_handler(int signo)
 {
     if(signo == SIGINT) {
-        finalize_screen();
+        finalize();
         exit(EXIT_FAILURE);
     }
 }
@@ -169,7 +200,6 @@ static void sig_handler(int signo)
 
 int main(int argc, char *argv[])
 {
-    computer comp;
 #ifdef HAVE_TIMING
     double cycle_time;
 #endif
@@ -187,7 +217,7 @@ int main(int argc, char *argv[])
 
     init_screen();
 
-    computer_reset(&comp);
+    computer_reset(&gs_comp);
 
     {
         FILE *fp;
@@ -199,44 +229,53 @@ int main(int argc, char *argv[])
         for(i = 0; i < COMPUTER_RAM_SIZE; i++) {
             int c = fgetc(fp);
             if(c == EOF) break;
-            comp.ram[i] = (unsigned char)c;
+            gs_comp.ram[i] = (unsigned char)c;
         }
         fclose(fp);
     }
 
     if(gs_arg.fast) {
-        if(gs_arg.print_interval) {
+        if(gs_arg.print_interval || gs_arg.profile) {
             unsigned long last_print = 0;
-            while(computer_is_running(&comp)) {
-                if(last_print + gs_arg.print_interval <= comp.clock_cycle) {
-                    printf("clock-cycles: %ld\n", comp.clock_cycle);
-                    last_print = comp.clock_cycle;
+            while(computer_is_running(&gs_comp)) {
+                if(last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
+                    printf("clock-cycles: %ld\n", gs_comp.clock_cycle);
+                    last_print = gs_comp.clock_cycle;
                 }
-                computer_step_instruction_fast(&comp);
+                if(gs_arg.profile) {
+                    gs_profile_count[comp.iar]++;
+                }
+                computer_step_instruction_fast(&gs_comp);
             }
         } else {
-            while(computer_is_running(&comp)) {
-                computer_step_instruction_fast(&comp);
+            while(computer_is_running(&gs_comp)) {
+                computer_step_instruction_fast(&gs_comp);
             }
         }
     } else {
-        while(computer_is_running(&comp)) {
+        unsigned long last_print = 0;
+        while(computer_is_running(&gs_comp)) {
 #ifdef HAVE_TIMING
             double cycle_start = time_now();
 #endif
-            computer_step_cycle(&comp);
+            computer_step_cycle(&gs_comp);
+            
+            if(last_print + gs_arg.print_interval <= gs_comp.clock_cycle) {
+                printf("clock-cycles: %ld\n", gs_comp.clock_cycle);
+                last_print = gs_comp.clock_cycle;
+            }
+            if(gs_arg.profile) {
+                gs_profile_count[comp.iar]++;
+            }
+            
 #ifdef HAVE_TIMING
             while(time_now() < cycle_start + cycle_time);
 #endif
         }
     }
 
-    if(gs_arg.print_total_clock_cycles) {
-        printf("Total clock-cycles: %ld.\n", comp.clock_cycle);
-    }
-
 clean:
-    finalize_screen();
+    finalize();
 
     return 0;
 }

@@ -390,3 +390,51 @@ void computer_step_instruction_fast(computer *comp)
     comp->clock_cycle += 6;
 }
 
+void computer_get_instruction_name(unsigned char instruction, char *name)
+{
+    int op = instruction >> 4;
+    int a = (instruction >> 2) & 3;
+    int b = instruction & 3;
+    
+    if(op & 8) { /* ALU operation */
+        op &= 7;
+        sprintf(name, "%-4s %2s %2s", computer_alu_op_name[op], computer_reg_name[a], computer_reg_name[b]);
+    } else {
+        if(op < 2) {
+            sprintf(name, "%-4s %2s %2s", computer_instr_name[op], computer_reg_name[a], computer_reg_name[b]);
+        } else if(op < 4) {
+            sprintf(name, "%-4s %2s", computer_instr_name[op], computer_reg_name[b]);
+        } else if(op == 4 || op == 6) {
+            sprintf(name, "%-4s", computer_instr_name[op]);
+        } else if(op == 5) { /* JXXX */
+            int pos = 1;
+            int i;
+            int flags = (a << 2) + b;
+            sprintf(name, "J   ");
+            for(i = 0; i < COMPUTER_FLAG_NR; i++) {
+                if(flags & (1 << i)) {
+                    name[pos++] = computer_flag_name[i];
+                }
+            }
+        } else { /* op == 7, IO */
+            int io = a >> 1;
+            int da = a & 1;
+            int pos = 0;
+            
+            if(io == COMPUTER_IO_INPUT) {
+                name[pos++] = 'I';
+                name[pos++] = 'N';
+            } else {
+                name[pos++] = 'O';
+                name[pos++] = 'U';
+                name[pos++] = 'T';
+            }
+            if(da == COMPUTER_IO_DATA) {
+                name[pos++] = 'D';
+            } else {
+                name[pos++] = 'A';
+            }
+            sprintf(name + 5, computer_reg_name[b]);
+        }
+    }
+}

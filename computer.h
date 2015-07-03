@@ -65,5 +65,7 @@ void computer_step_cycle(computer *comp);
 void computer_step_instruction(computer *comp);
 void computer_step_instruction_fast(computer *comp);
 
+void computer_get_instruction_name(unsigned char instruction, char *name);
+
 #endif
 

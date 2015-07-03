@@ -225,6 +225,7 @@ pre_next_pos:
 # END MODULE OPTIMIZE_POS
   st   ra rb
 
+# Start of the inner most loop
 next_pos: # REG: (&pos, *pos, *n_cur_val, *), FLAG: *
   # If *pos & *n_cur_val (**n_cur): set carry
   and  rb rc
@@ -245,7 +246,7 @@ next_pos: # REG: (&pos, *pos, *n_cur_val, *), FLAG: *
   ld   rc rc # rc = *m1
   # Compare *m1 >? *R1
   cmp  rc rd
-  ja   $dont_subtract
+  ja   $dont_subtract # Most of the times it will jump here
   je   $check_lowbit
   jmp  $subtract_m16_post
 check_lowbit: # REG: (*, *R0, *, *R1), FLAG: *
@@ -279,13 +280,15 @@ subtract_m16_post: # REG: (*, *R0, *m1, *R1), FLAG: *
   add  ra rc
   st   rc rb
 
+# Part of the inner most loop. Update pos 
 dont_subtract: # REG: (*, *, *, *), FLAG: C UNSET, REST *
   # pos >>= 1
   data ra $pos
   ld   ra rb
   shr  rb rb
   st   ra rb
-  jc   $pre_next_n_cur
+  jc   $pre_next_n_cur # if this n_cur is done, jump (not so often)
+# Fetch *n_cur_val in preparation of jump to next_pos
 # MODULE N_CUR_VAL
   data rc $n_cur_val # Change to n_cur_val if using N_CUR_VAL (otherwise n_cur)
 # END MODULE N_CUR_VAL
@@ -293,7 +296,7 @@ dont_subtract: # REG: (*, *, *, *), FLAG: C UNSET, REST *
 # MODULE N_CUR_VAL
   #ld   rc rc # Add this if not using n_cur_val
 # END MODULE N_CUR_VAL
-  jmp  $next_pos
+  jmp  $next_pos # go to next iteration of inner-most loop
 # MODULE OPTIMIZE_POS
 pre_pre_next_n_cur:
   shl  rb rb # Will make rb = 0 and set carry

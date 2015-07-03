@@ -482,15 +482,14 @@ int main(int argc, char *argv[])
             int ram_tmp = COMPUTER_INSTR_JXXX << 4;
 
             for(i = 1; i < (int)strlen(tline); i++) {
-                if(tline[i] == 'Z') {
-                    ram_tmp |= 1 << COMPUTER_FLAG_ZERO;
-                } else if(tline[i] == 'E') {
-                    ram_tmp |= 1 << COMPUTER_FLAG_EQUAL;
-                } else if(tline[i] == 'A') {
-                    ram_tmp |= 1 << COMPUTER_FLAG_A_LARGER;
-                } else if(tline[i] == 'C') {
-                    ram_tmp |= 1 << COMPUTER_FLAG_CARRY;
-                } else {
+                int j;
+                for(j = 0; j < COMPUTER_FLAG_NR; j++) {
+                    if(tline[i] == computer_flag_name[j]) {
+                        ram_tmp |= 1 << j;
+                        break;
+                    }
+                }
+                if(j < COMPUTER_FLAG_NR) {
                     report_error("Unknown instruction \"%s\"", tline);
                 }
             }

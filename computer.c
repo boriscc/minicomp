@@ -14,6 +14,9 @@ char const *computer_alu_op_name[COMPUTER_ALU_OP_NR] = {
 
 char const *computer_instr_name[COMPUTER_INSTR_NR] = {
     "LD", "ST", "DATA", "JMPR", "JMP", "JXXX", "CLF", "IO" };
+    
+char const computer_flag_name[COMPUTER_FLAG_NR] = {
+    'Z', 'E', 'A', 'C' };
 
 void computer_reset(computer *comp)
 {

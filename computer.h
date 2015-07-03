@@ -10,6 +10,7 @@
 #define COMPUTER_FLAG_EQUAL    1
 #define COMPUTER_FLAG_A_LARGER 2
 #define COMPUTER_FLAG_CARRY    3
+#define COMPUTER_FLAG_NR       4
 
 #define COMPUTER_ALU_ADD 0 /* 1000RARB */
 #define COMPUTER_ALU_SHR 1 /* 1001RARB */
@@ -39,6 +40,7 @@
 extern char const *computer_reg_name[COMPUTER_REG_NR];
 extern char const *computer_alu_op_name[COMPUTER_ALU_OP_NR];
 extern char const *computer_instr_name[COMPUTER_INSTR_NR];
+extern char const computer_flag_name[COMPUTER_FLAG_NR];
 
 typedef struct computer computer;
 

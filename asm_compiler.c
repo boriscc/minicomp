@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
         /* Check if the line is a PRAGMA line */
         if(strcmp(tline, "PRAGMA") == 0) {
             if(sub1 == NULL) {
-                report_error("Bad format: Expected a pragma type: \"POS\"");
+                report_error("Bad format: Expected a pragma type: \"POS\", \"SETPOS\"");
             }
             if(strcmp(sub1, "POS") == 0) {
                 unsigned char requested_pos;
@@ -431,6 +431,21 @@ int main(int argc, char *argv[])
                 if(ram_pos != requested_pos) {
                     report_error("pragma pos mismatch: requested(%d) != actual(%d)", requested_pos, ram_pos);
                 }
+            } else if(strcmp(sub1, "SETPOS") == 0) {
+                unsigned char requested_pos;
+
+                if(sub2 == NULL) {
+                    report_error("Expected numerical position after pragma setpos");
+                }
+
+                requested_pos = get_number(sub2, &label, ram_pos);
+                if(requested_pos == 0) {
+                    report_error("pragma setpos cannot be a label or the position 0");
+                }
+                if(ram_pos > requested_pos) {
+                    report_error("actual pos (%d) is larger than requested pos (%d) is setpos", ram_pos, requested_pos);
+                }
+                ram_pos = requested_pos;
             } else {
                 report_error("Unknown pragma \"%s\"", sub1);
             }

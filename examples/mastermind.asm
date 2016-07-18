@@ -5,7 +5,10 @@
 # range 1-6, then the program tells you first how many
 # of those were correct and in the right place, then
 # how many were correct but in the wrong place.
+
+# ld ra rb = 00000001, so store 1 (value at RAM address 0) in rb
 ld   ra rb # ra=0 => rb=1
+# ld rb rd = 00000111, so store 7 (value at RAM address 1) in rd
 ld   rb rd # rb=1 => rd=7
 data ra 5
 outa ra

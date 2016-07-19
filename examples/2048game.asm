@@ -91,10 +91,10 @@ init_move:
   # NO JUMP HERE
   # Store the current move data in the *_cur variables
   # Uses: rd = move
-  data ra 1
   shl  rd rb # rb = 2*move
   add  rb rd # rd = 3*move
-  data rb $move_data
+  data rb $move_data_pre
+  shr  ra ra # ra = 1, carry set
   add  rd rb # rb points to correct move data
   data rc $offset_step_cur # rc points to the cur data
   ld   rb rd # offset_step
@@ -118,13 +118,12 @@ outer_move_loop:
   # ra, rb, rc, rd; flags = *, *, *, *offset_cur; !C
   # assumes rd = *offset_cur
   # set *pos_first = *pos_second = $board + *offset_cur
-  data ra 1
   data rb $board
   add  rd rb # rb = $board + offset, may overflow, in which case we are done
   jc   $check_changed
   data rd $pos_first
   st   rd rb # *pos_first = rb
-  add  ra rd # rd = $pos_second
+  data rd $pos_second
   st   rd rb # *pos_second = rb
   # If *first == 218, that means we are done
   ld   rb ra # ra = *first
@@ -169,6 +168,20 @@ move_merge:
   data rc 1
   add  rc rd
   st   rb rd
+  # Check if won
+  data ra 11
+  cmp  ra rd
+  ja   $not_won
+  shl  rc ra
+  outa ra
+  data ra $win_msg
+win_print:
+  ld   ra rd
+  outd rd
+  add  rc ra
+  cmp  rd rc
+  jae  $win_print
+not_won:
   # *second = 0
   xor  ra ra
   data rc $pos_second
@@ -229,18 +242,25 @@ check_changed:
   jae  $add_random
   jmp  $get_input
 
-pragma setpos 210
+win_msg:
+. 'Y'
+. 'o'
+. 'u'
+. ' '
+. 'W'
+. 'i'
+. 'n'
+. '!'
+. 10
+. 0
+initialized:
+. 0
 changed:
-. 0
-board_modified:
-. 0
-line_counter:
-. 0
-second_counter:
 . 0
 pos_first:
 . 0
 pos_second:
+move_data_pre:
 . 0
 
 move_data:
@@ -263,9 +283,7 @@ step_cur:
 offset_cur:
 . 0
 
-pragma setpos 234
-initialized:
-. 0
+pragma setpos 235
 board:
 . 0
 . 0

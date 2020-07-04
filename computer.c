@@ -26,6 +26,7 @@ void computer_reset(computer *comp)
     comp->io_input[PERI_ADDR_KEYBOARD] = peri_keyboard_buffered_input;
     comp->io_output[PERI_ADDR_ASCII_PRINTER] = peri_ascii_printer_output;
     comp->io_output[PERI_ADDR_INTEGER_PRINTER] = peri_integer_printer_output;
+    comp->io_output[PERI_ADDR_HEX_PRINTER] = peri_hex_printer_output;
     comp->io_output[PERI_ADDR_INTEGER16_PRINTER] = peri_integer16_printer_output;
     comp->io_output[PERI_ADDR_INTEGER24_PRINTER] = peri_integer24_printer_output;
     comp->io_output[PERI_ADDR_INTEGER32_PRINTER] = peri_integer32_printer_output;

@@ -96,6 +96,7 @@ The peripheral units that are connected are:
 3   integer printer (output only)
 4   terminate (output only, turns of the computer when it receives data)
 5   random number generator (input only, random uniform number)
+6   hexadecimal printer (output only)
 16  16-bit integer printer (output only, outputs when it has received 2 bytes)
 24  24-bit integer printer (output only, outputs when it has received 3 bytes)
 32  32-bit integer printer (output only, outputs when it has received 4 bytes)

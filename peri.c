@@ -103,6 +103,17 @@ void peri_integer_printer_output(computer *comp, unsigned char i)
 #endif
 }
 
+void peri_hex_printer_output(computer *comp, unsigned char i)
+{
+#ifdef HAVE_NCURSES
+    printw("%02x", i);
+    refresh();
+#else
+    printf("%02x", i);
+    fflush(stdout);
+#endif
+}
+
 void peri_integer16_printer_output(computer *comp, unsigned char i)
 {
     static unsigned long len = 0;

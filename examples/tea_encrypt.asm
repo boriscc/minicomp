@@ -15,6 +15,29 @@ get_input:
   jmp  $get_input
 have_next_V:
   clf
+  # cycle = sum = 0
+  data ra $cycle
+  data rc 1
+  xor  rb rb
+  st   ra rb
+  add  rc ra
+  st   ra rb
+  add  rc ra
+  st   ra rb
+  add  rc ra
+  st   ra rb
+  add  rc ra
+  st   ra rb
+start_cycle:
+  # Check if we should end the loop
+  data ra 32
+  data rb $cycle
+  data rc 1
+  ld   rb rd
+  add  rc rd
+  st   rb rd
+  cmp  ra rb
+  ja   $start_cycle
 print_encrypted:
   data ra 6
   outa ra # hex-number printer
@@ -32,17 +55,19 @@ terminate:
   data ra 4
   outa ra
   outd ra
+cycle:
+. 0
+sum:
+. 0
+. 0
+. 0
+. 0
 V0:
 . 0
 . 0
 . 0
 . 0
 V1:
-. 0
-. 0
-. 0
-. 0
-sum:
 . 0
 . 0
 . 0

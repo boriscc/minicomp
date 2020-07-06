@@ -11,5 +11,5 @@ while True:
     dsum = 0
     delta = 0x9E3779B9
     for i in range(32):
-        pass
+        print('Q--', end='')
     print('%08x%08x' % (v0, v1))

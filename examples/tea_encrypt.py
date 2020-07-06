@@ -11,5 +11,6 @@ while True:
     dsum = 0
     delta = 0x9E3779B9
     for i in range(32):
-        print('Q--', end='')
+        dsum += delta
+        print('%02x--' % ((dsum >> 24) & 0xff), end='')
     print('%08x%08x' % (v0, v1))

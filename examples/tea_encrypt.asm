@@ -71,6 +71,7 @@ set_tmp_again:
   cmp  rd ra
   ja   $set_tmp_again
   # A <<= 4
+  # C >>= 5
   # A += K0
   data ra $tmp_A
   data rb $pK0
@@ -78,15 +79,16 @@ set_tmp_again:
   data rc $origin_2
   jmp  $binary_oper
 origin_2:
+  # here, ra = $tmp_A + 4 = $tmp_B
   # B += sum
-  data ra $tmp_B
+  #data ra $tmp_B
   data rb $sum
   data rc $origin_3
   jmp  $binary_oper
 origin_3:
-  # C >>= 5
+  # here, ra = $tmp_B + 4 = $tmp_C
   # C += K1
-  data ra $tmp_C
+  #data ra $tmp_C
   data rb $pK1
   ld   rb rb
   data rc $origin_4
@@ -98,9 +100,10 @@ origin_4:
   data rc $origin_5
   jmp  $binary_oper
 origin_5:
+  # here, rb = $tmp_B + 4 = $tmp_C
   # A ^= C
   data ra $tmp_A_xor
-  data rb $tmp_C
+  #data rb $tmp_C
   data rc $origin_6
   jmp  $binary_oper
 origin_6:
@@ -157,6 +160,9 @@ binary_oper: # (ra=&a | oper, rb=&b, rc=&origin, on ret: a = a OP b)
              # requires: &a % 4 == &b % 4 == 0
              # oper = 0 means addition
              # oper = 1 means xor
+             # on output, ra, rb, rc, rd =
+             # &a + 4, &b + 4, &origin, 0
+             # ra must be < 252, i.e. ra can not be $K1
   # Store &origin at $origin
   xor  rd rd # $origin = 0, so rd = $origin
   st   rd rc
@@ -188,10 +194,16 @@ binary_oper_impl:
   shr  rc rc  # restore carry flag
   jmp  $binary_oper_loop
 binary_oper_end:
-  data ra $origin # ra = &origin
-  ld   ra ra # ra = origin
-  jmpr ra    # jump to $origin
+  data rc $origin # ra = &origin
+  ld   rc rc # ra = origin
+  jmpr rc    # jump to $origin
 # Filling
+. 0
+. 0
+. 0
+. 0
+. 0
+. 0
 . 0
 . 0
 . 0

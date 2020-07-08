@@ -1,3 +1,4 @@
+# 32-bit values are stored with least significant bit first
 origin:
 . 0 # 00000000 = ld   ra ra
 pV0:
@@ -23,6 +24,8 @@ get_input:
   shl  rd rd # shift in carry, carry unset
   cmp  ra rd
   ja   $get_input
+  data ra 6
+  outa ra # hex-number printer
   # Set cycle = 0
   data ra $cycle
   xor  rb rb
@@ -44,24 +47,70 @@ start_cycle:
   data rc $origin_1
   jmp  $binary_oper
 origin_1:
-  data ra 6 # DEBUG
-  outa ra # DEBUG
-  data ra 231 # DEBUG
-  ld   ra ra
-  outd ra # DEBUG
 start_half_cycle:
-  # FOR TESTING: V0 += K0
-  #data ra $pV0
-  #ld   ra ra
-  #data rb $pK0
-  #ld   rb rb
-  #data rc $origin_2
-  #jmp  $binary_oper
-  data ra 2 # DEBUG
-  outa ra # DEBUG
-  data ra '-' # DEBUG
-  outd ra # DEBUG
+  # Implement: v0 += ((v1<<4) + k0) ^ (v1 + sum) ^ ((v1>>5) + k1)
+  # A = B = C = V1, done in 24 bytes
+  data ra $tmp_A # ra = tmp_A
+  data rb 4
+  data rc $pV0 # rc = &pV0
+  ld   rc rc   # rc = pV0
+  xor  rb rc   # rc = pV1
+set_tmp_again:
+  ld   rc rd   # rd = pV1[n]
+  st   ra rd   # tmp_A[n] = pV1[n]
+  add  rb ra   # ra = tmp_B + n
+  st   ra rd   # tmp_B[n] = pV1[n]
+  add  rb ra   # ra = tmp_C + n
+  st   ra rd   # tmp_C[n] = pV1[n]
+  data rd 249
+  add  rd ra   # ra = ra + 249 = ra + (249 - 256) = ra - 7
+  # carry will now be set
+  data rd 0
+  add  rd rc   # since carry is set, this will increase rc by 1
+  data rd $tmp_B
+  cmp  rd ra
+  ja   $set_tmp_again
+  # A <<= 4
+  # A += K0
+  data ra $tmp_A
+  data rb $pK0
+  ld   rb rb
+  data rc $origin_2
+  jmp  $binary_oper
 origin_2:
+  # B += sum
+  data ra $tmp_B
+  data rb $sum
+  data rc $origin_3
+  jmp  $binary_oper
+origin_3:
+  # C >>= 5
+  # C += K1
+  data ra $tmp_C
+  data rb $pK1
+  ld   rb rb
+  data rc $origin_4
+  jmp  $binary_oper
+origin_4:
+  # A ^= B
+  data ra $tmp_A_xor
+  data rb $tmp_B
+  data rc $origin_5
+  jmp  $binary_oper
+origin_5:
+  # A ^= C
+  data ra $tmp_A_xor
+  data rb $tmp_C
+  data rc $origin_6
+  jmp  $binary_oper
+origin_6:
+  # V0 += A
+  data ra $pV0
+  ld   ra ra
+  data rb $tmp_A
+  data rc $origin_7
+  jmp  $binary_oper
+origin_7:
   # The half cycle is now done, switch V0/V1, K0/K2 and K1/K3
   data rd 4
   data ra $pV0
@@ -93,8 +142,6 @@ done_switching:
   ja   $start_cycle
   # If we get gere, we are done with the encryption
   # Print the encrypted value
-  data ra 6
-  outa ra # hex-number printer
   data ra $K2
   xor  rc rc
   not  rc rb # rb = 255 = -1
@@ -115,14 +162,12 @@ binary_oper: # (ra=&a | oper, rb=&b, rc=&origin, on ret: a = a OP b)
   st   rd rc
   # Set the correct operation
   shr  ra ra # will set carry if oper is xor
-  data rd 111 # $oper_add / 2
+  data rd 105 # $oper_add / 2
   add  rd rd # = $oper_add + carry
   ld   rd rd
   data rc $binary_oper_impl
   st   rc rd # *$binary_oper_impl = *($oper_add + carry)
   xor  rd rd
-  # Remove the carry if set
-  clf
   # Restore ra to the correct address
   shl  ra ra
 binary_oper_loop:
@@ -143,7 +188,6 @@ binary_oper_impl:
   shr  rc rc  # restore carry flag
   jmp  $binary_oper_loop
 binary_oper_end:
-  clf
   data ra $origin # ra = &origin
   ld   ra ra # ra = origin
   jmpr ra    # jump to $origin
@@ -159,85 +203,28 @@ binary_oper_end:
 . 0
 . 0
 . 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-PRAGMA POS 222
+PRAGMA POS 210
 oper_add:
   add  rc rd
 oper_xor:
   xor  rc rd
-PRAGMA POS 224
+PRAGMA POS 212
+tmp_A:
+. 0
+tmp_A_xor:
+. 0
+. 0
+. 0
+tmp_B:
+. 0
+. 0
+. 0
+. 0
+tmp_C:
+. 0
+. 0
+. 0
+. 0
 delta:
 . 0xb9
 . 0x79

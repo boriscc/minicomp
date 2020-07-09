@@ -4,42 +4,43 @@ origin:
 pV0:
 . 236 # 11101100 = xor  rd ra
 pK0:
-. 244 # 11110100 = xor  rb ra
+. 244 # 11110100 = xor  rb ra -- i.e. ra = 1
 cycle:
-. 0 # 00000000 = ld   ra ra
+. 10110101 # = not  rb rb -- i.e. rb = 255
 pK1:
 . 252 # 11111100 = cmp  rd ra
-get_next_V:
+get_next_V: # when getting here from jump, rb = rc = 255
   data rc 1
   outa rc # keyboard
   data rc $K2
   xor  rd rd # rd = 0
-  not  rd ra # ra = 255 = -1
+  not  rd rb # rb = 255 = -1
 get_input:
-  ind  rb
-  or   rb rb
+  ind  ra
+  or   ra ra # check if zero
   jz   $get_input
-  add  ra rc # subtract -1, generates carry
-  st   rc rb
+  add  rb rc # subtract -1, generates carry
+  st   rc ra
   shl  rd rd # shift in carry, carry unset
-  cmp  ra rd
+  cmp  rb rd
   ja   $get_input
-  data ra 6
-  outa ra # hex-number printer
-  # Set cycle = 0
-  data ra $cycle
-  xor  rb rb
-  st   ra rb
+  data rb 6
+  outa rb # hex-number printer
+  # Set cycle = 0, since $cycle = 3, rb = 2*$cycle
+  shr  rb rb
+  # we will need a 1, so shr again
+  shr  rb rc # rc = 1
+  xor  ra ra
+  st   rb ra
   # Set sum = 0
-  data ra $sum
-  data rc 1
-  st   ra rb
-  add  rc ra
-  st   ra rb
-  add  rc ra
-  st   ra rb
-  add  rc ra
-  st   ra rb
+  data rb $sum
+  st   rb ra
+  add  rc rb
+  st   rb ra
+  add  rc rb
+  st   rb ra
+  add  rc rb
+  st   rb ra
 start_cycle:
   # sum += delta
   data ra $sum
@@ -154,6 +155,7 @@ print_again:
   outd rd
   shl  rc rc # carry will be shifted in, carry unset
   cmp  rc rb
+  # when equal, ra = $V1, rb = 255, rc = 255, rd = random
   je   $get_next_V
   jmp  $print_again
 binary_oper: # (ra=&a | oper, rb=&b, rc=&origin, on ret: a = a OP b)
@@ -197,7 +199,9 @@ binary_oper_end:
   data rc $origin # ra = &origin
   ld   rc rc # ra = origin
   jmpr rc    # jump to $origin
-# Filling
+# filling
+. 0
+. 0
 . 0
 . 0
 . 0
@@ -227,7 +231,7 @@ tmp_A_xor:
 . 0
 . 0
 . 0
-tmp_B:
+tmp_B: # 216 = 11011000
 . 0
 . 0
 . 0

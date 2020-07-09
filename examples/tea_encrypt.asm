@@ -147,10 +147,8 @@ switch_again:
   xor  rd rb # if rb was &V0, it will now be &V1, and vice versa
   st   ra rb # store new rb back to $pV0
   shl  ra ra # make ra point to the next variable to switch
-  cmp  ra rd
-  ja   $done_switching # if ra is 8, make the jump
-  jmp  $switch_again
-done_switching:
+  cmp  rd ra
+  jae  $switch_again # if ra <= 4, make the jump
   # Check if we have done both half cycles
   # Here, rb will be either $K1 or $K3, and rd will be 4
   # If rb is $K1, we have done both half cycles
@@ -224,6 +222,8 @@ binary_oper_end:
   ld   rc rc # ra = origin
   jmpr rc    # jump to $origin
 # filling
+. 0
+. 0
 . 0
 . 0
 . 0

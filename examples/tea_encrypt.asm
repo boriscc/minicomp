@@ -72,10 +72,10 @@ set_tmp_again:
   ja   $set_tmp_again
   # here, ra = $tmp_B = 11011000, rb = 00000100, rc = ?, rd = $tmp_B
   # A <<= 4
-#  xor  rc rc # rc = 0 = $origin
-#  st   rc ra # $origin = 11011000, i.e. after four shr a carry will be generated
+  xor  rc rc # rc = 0 = $origin
+  st   rc ra # $origin = 11011000, i.e. after four shr a carry will be generated
   data rc 1
-#shift_left_again:
+shift_left_again:
   data ra $tmp_A
 shift_next_byte:
   shr  rb rb # restore carry
@@ -88,13 +88,13 @@ shift_next_byte:
   cmp  rd ra
   ja   $shift_next_byte
   # here, ra = $tmp_B, rb = 0 or 1, rc = 1, rd = $tmp_B
-#  xor  rb rb
-#  ld   rb ra
-#  shr  ra ra
-#  st   rb ra
-#  jc   $shift_left_done
-#  jmp  $shift_left_again
-#shift_left_done:
+  xor  rb rb
+  ld   rb ra
+  shr  ra ra
+  st   rb ra
+  jc   $shift_left_done
+  jmp  $shift_left_again
+shift_left_done:
   # C >>= 5
   # A += K0
   data ra $tmp_A
@@ -219,16 +219,6 @@ binary_oper_end:
   ld   rc rc # ra = origin
   jmpr rc    # jump to $origin
 # filling
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
-. 0
 PRAGMA POS 210
 oper_add:
   add  rc rd

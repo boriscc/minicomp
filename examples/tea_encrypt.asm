@@ -34,13 +34,12 @@ get_input:
   st   rb ra
   # Set sum = 0
   data rb $sum
+  data rd $V1
+zero_sum_again:
   st   rb ra
   add  rc rb
-  st   rb ra
-  add  rc rb
-  st   rb ra
-  add  rc rb
-  st   rb ra
+  cmp  rd rb
+  ja   $zero_sum_again
 start_cycle:
   # sum += delta
   data ra $sum

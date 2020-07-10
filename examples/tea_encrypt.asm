@@ -157,11 +157,10 @@ switch_again:
   jz   $start_half_cycle
   # If we get here, we are done with both half cycles
   # Check if we should end the loop
-  data ra 32
-  data rb $cycle
-  data rc 1
-  ld   rb rd # rd = number of completed cycles
-  add  rc rd # rd = updated number of completed cycles
+  data ra 96 # = 3 * 32
+  data rb $cycle # = 3
+  ld   rb rd # rd = 3 * number of completed cycles
+  add  rb rd # rd += 3
   st   rb rd
   cmp  ra rd
   ja   $start_cycle
@@ -196,7 +195,6 @@ binary_oper: # (ra=&a | oper, rb=&b, rc=&origin, on ret: a = a OP b)
   ld   rd rd
   data rc $binary_oper_impl
   st   rc rd # *$binary_oper_impl = *($oper_add + carry)
-  xor  rd rd
   # Restore ra to the correct address
   shl  ra ra
 binary_oper_loop:
@@ -221,6 +219,9 @@ binary_oper_end:
   ld   rc rc # ra = origin
   jmpr rc    # jump to $origin
 # filling
+. 0
+. 0
+. 0
 . 0
 . 0
 . 0

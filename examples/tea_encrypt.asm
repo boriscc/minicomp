@@ -41,14 +41,14 @@ zero_sum_again:
   ja   $zero_sum_again
 start_cycle:
   # sum += delta
-  data ra $sum
-  data rb $delta
-  data rc $origin_1
-  jmp  $binary_oper
+  ##data ra $sum
+  ##data rb $delta
+  ##data rc $origin_1
+  ##jmp  $binary_oper
 origin_1:
 start_half_cycle:
   # Implement: v0 += ((v1<<4) + k0) ^ (v1 + sum) ^ ((v1>>5) + k1)
-  # A = B = C = V1, done in 24 bytes
+  # A = B = C = V1, done in 25 bytes
   data ra $tmp_A # ra = tmp_A
   data rb 4
   data rc $pV0 # rc = &pV0
@@ -70,7 +70,7 @@ set_tmp_again:
   cmp  rd ra
   ja   $set_tmp_again
   # here, ra = $tmp_B = 11011000, rb = 00000100, rc = ?, rd = $tmp_B
-  # A <<= 4
+  # A <<= 4, done in 24 bytes
   xor  rc rc # rc = 0 = $origin
   st   rc ra # $origin = 11011000, i.e. after four shr a carry will be generated
   data rc 1
@@ -94,28 +94,51 @@ shift_next_byte:
   jc   $shift_left_done
   jmp  $shift_left_again
 shift_left_done:
-  # C >>= 5
+  # here, *$origin = ra = 00001101, rb = 0, rc = 1, rd = $tmp_B, carry is set
+  # C >>= 5, done in 23 bytes
+  data rd $tmp_B_end
+  not  rb rc # rc = 255 = -1
+shift_right_again:
+  data ra $tmp_C_end
+shift_right_next_byte:
+  shr  rb rb # restore carry
+  ld   ra rb
+  shr  rb rb
+  st   ra rb
+  shl  rb rb # store carry
+  clf
+  add  rc ra
+  cmp  ra rd
+  ja   $shift_right_next_byte
+  # here, ra = $tmp_B, rb = 0 or 1, rc = 1, rd = $tmp_B
+  xor  rb rb
+  ld   rb ra
+  shl  ra ra
+  st   rb ra
+  jc   $shift_right_done
+  jmp  $shift_right_again
+shift_right_done:
   # A += K0
-  data ra $tmp_A
-  data rb $pK0
-  ld   rb rb
-  data rc $origin_2
-  jmp  $binary_oper
+  ##data ra $tmp_A
+  ##data rb $pK0
+  ##ld   rb rb
+  ##data rc $origin_2
+  ##jmp  $binary_oper
 origin_2:
   # here, ra = $tmp_A + 4 = $tmp_B
   # B += sum
   #data ra $tmp_B
-  data rb $sum
-  data rc $origin_3
-  jmp  $binary_oper
+  ##data rb $sum
+  ##data rc $origin_3
+  ##jmp  $binary_oper
 origin_3:
   # here, ra = $tmp_B + 4 = $tmp_C
   # C += K1
   #data ra $tmp_C
-  data rb $pK1
-  ld   rb rb
-  data rc $origin_4
-  jmp  $binary_oper
+  ##data rb $pK1
+  ##ld   rb rb
+  ##data rc $origin_4
+  ##jmp  $binary_oper
 origin_4:
   # A ^= B
   data ra $tmp_A_xor
@@ -219,6 +242,13 @@ binary_oper_end:
   jmpr rc    # jump to $origin
 # filling
 . 0
+. 0
+. 0
+. 0
+. 0
+. 0
+. 0
+. 0
 PRAGMA POS 210
 oper_add:
   add  rc rd
@@ -235,11 +265,13 @@ tmp_B: # 216 = 11011000
 . 0
 . 0
 . 0
+tmp_B_end:
 . 0
 tmp_C:
 . 0
 . 0
 . 0
+tmp_C_end:
 . 0
 delta:
 . 0xb9

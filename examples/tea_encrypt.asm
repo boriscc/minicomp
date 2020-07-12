@@ -14,7 +14,6 @@ get_next_V: # when getting here from jump, rb = rc = 255
   outa rc # keyboard
   data rc $K2
   xor  rd rd # rd = 0
-  not  rd rb # rb = 255 = -1
 get_input:
   ind  ra
   or   ra ra # check if zero
@@ -219,6 +218,7 @@ binary_oper_end:
   ld   rc rc # ra = origin
   jmpr rc    # jump to $origin
 # filling
+. 0
 PRAGMA POS 210
 oper_add:
   add  rc rd

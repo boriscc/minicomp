@@ -73,14 +73,15 @@ The registers are:
    * RD 11
 
 The flags:
-   * C = carry, set if an ALU operation overflow
+   * C = carry, set if an ALU operation overflow, otherwise unset
    * A = A larger, set in all ALU comparisons if A is larger than B, otherwise unset
    * E = equal, set if A == B in an ALU operation
    * Z = zero, set if the result of an ALU operation is zero, otherwise unset
 
 All ALU operations set A, E and Z to the corresponding value.
 Except CMP which does not touch Z.
-C is only used and set/unset by ADD, SHR and SHL.
+C is used and set/unset by ADD, SHR and SHL.
+All other ALU operations will set C to zero.
 
 The op-codes are as follows:
 
@@ -111,7 +112,7 @@ The peripheral units that are connected are:
    * 1   keyboard (input only, sends next ascii code, 0 means no input available)
    * 2   ASCII printer (output only)
    * 3   integer printer (output only)
-   * 4   terminate (output only, turns of the computer when it receives data)
+   * 4   terminate (output only, turns off the computer when it receives data)
    * 5   random number generator (input only, random uniform number)
    * 6   hexadecimal printer (output only)
    * 16  16-bit integer printer (output only, outputs when it has received 2 bytes)

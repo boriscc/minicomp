@@ -1,5 +1,6 @@
 *.o
 *.ram
+*.cram
 simulator
 asm_compiler
 config.h

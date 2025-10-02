@@ -1,0 +1,371 @@
+# This program will take a very long time, but theoretically it will print
+# all primes < 2^32 = 4,294,967,296. The idea is:
+#   print 2
+#   print 3
+#   for n = 5 to 2^32-1, alternating step 2 and 4
+#       for m = 5 to min(n-1, 2^16-1), alternating step 2 and 4
+#           if n % m == 0: not prime, test next n
+#       print n
+#   exit
+# The most complex part is the n % m calculation. n is a 32-bit number and m is
+# a 16-bit number. The idea is to do long division and only store the remained.
+# Doing long division in binary basically amounts to:
+#   remainer = 0
+#   for each bit in n, starting with the MSB:
+#     remainder = 2 * remainder + n_bit
+#     if remainder > m:
+#       # No loop is needed here, since 2*m > remainder will always be true
+#       remainder = remainder - m
+# Since we only have 8-bit variables, this will amount to:
+#   # R0 = least significant byte of remainder, R1 = MSB
+#   R0 = R1 = 0
+#   for each byte in n, starting with the MSB:
+#     pos = 0b10000000
+#     while pos > 0:
+#       R0 = R0 << 1
+#       R1 = R1 << 1 # this will shift in any carry from R0
+#       mask = n_byte & pos
+#       to_add = (mask > 0) ? 1 : 0
+#       R0 = R0 + to_add
+#       R1 = R1 + 0 # this will add any carry from R0
+#       if R1 > m1 or (R1 == m1 and R0 > m0):
+#         R0 = R0 + !m0
+#         R1 = R1 + !m1 # This will add any carry from R0
+#         R0 = R0 + 0 # The addition above will always overflow, so this adds 1
+#         R1 = R1 + 0 # This will add any carry from R0
+# For git version d1ecada, I made the following estimates for this program:
+# Total number of clock-cycles: 2.957e+13
+# Clock-cycles per natural number: 6.885e+03
+# Clock-cycles per tested number: 2.065e+04
+# Total time @ 1 GHz : 1.87 months
+#   (i.e. 1 giga-instructions per second, 1 instr = 6 clock cycles)
+
+# Numbers larger than 8 bit are stored as x0, x1, x2, ..., with x0 being the least
+# significant byte.
+
+# Print "2\n3\n"
+# I have some data locations here that do not need initial values.
+# This is a good place since these first lines of code are only executed
+# once in the beginning.
+# R16 contains the remainder after the long division n32 / m16
+R1:
+R0:: # double :: means the position after this position
+rc-addr_ascii_printer = 2
+# m16 is the number to divide n32 with, if the remainder is zero, n32 is not prime
+m1:
+outa rc-addr_ascii_printer # ASCII printer
+m0:
+# m_add contains the number to increase m16 with. Will alternate between 4 and 2, so
+# that both even numbers and numbers divisible by three are omitted.
+m_add:: # must be directly after m0
+rc-prime = '2'
+outd rc-prime # Print prime 2
+# MODULE N_CUR_VAL
+n_cur_val: # = *n_cur
+# END MODULE N_CUR_VAL
+# n32_larger_than_16 is set to != 0 when n32 >= 2^16. This is needed for the evaluation
+# of n32 == m16, which is needed so that the m16 loop stops before it reaches n32
+n32_larger_than_16::
+rd-newline = 10
+outd rd-newline # new line
+rc-prime = '3'
+outd rc-prime # Print prime 3
+outd rd-newline # new line
+jmp $next_n
+
+# Same as m_add, but for n32
+n_add:
+. 4
+# n32 is for the outer loop, each n32 is then divided by m16, and if all divisions have
+# remainder != 0, then n32 is prime.
+# Any n32 value can be entered as start value, as long as n32 - 1 is divisible by 6.
+n3:
+. 0
+n2:
+. 0
+n1:
+. 0
+pragma pos 19
+n0: # this must be position 19
+. 1
+# n_cur is a pointer to the current byte in n32 that is looped over when doing
+# long division n32 / m16
+n_cur:
+. 0
+
+# Routine to print n32 when it is a prime
+is_prime: # REG: (*, *, *, 0), FLAG: *
+# 20 bytes
+  ra-integer-32-printer = 32
+  outa ra-integer-32-printer
+  ra-p_current = $n0
+  rb-p_end = $n_add # Used to terminate the loop
+  rc-step = !rd-assumed_to_be_zero # rc = 11111111
+print_again:
+  rd-current_byte = *ra-p_current # load current n32 byte
+  outd rd-current_byte # send it to printer
+  ra-p_current += rc-step
+  ra-p_current == rb-p_end # To see if we should terminate the loop
+  ja $print_again
+  ra-ascii_printer = 2
+  outa ra-ascii_printer # ASCII printer
+  ra-newline = 10
+  outd ra-newline # Print new line
+
+# Here we start with the next n32 value to test for primality
+next_n: # REG: (*, *, *, *), FLAG: C UNSET, REST *
+  # Set rd = number to add. Store next adder
+  rb-p_n_add = $n_add
+  rd-current_add = *rb-p_n_add # rd = number to add, either 2 or 4
+  ra-mask = 6
+  ra-next_add ^= rd-current_add # ra: 2->4, 4->2 = next add
+  *rb-p_n_add = ra-next_add # store next add
+
+  # n32 = n32 + 2 or 4
+  # 16 bytes (+3 further down to set rb)
+  # No loop requires 22 bytes
+  # This loop is a bit strange due to the limitation of only four registers, therefore
+  # I store a needed carry in ra, which is <= 38 so I can left shift ra and use LSB
+  # to store the carry.
+  ra-p_n_current_double_and_carry = 38 # 2 * $n0 = 2 * 19, times 2 to store carry in LSB
+  rb-p_n_add_double = rb-p_n_add << 1 # needed since 2*addr will be compared to rb
+add_again:
+  ra-p_n_current = ra-p_n_current_double_and_carry >> 1 # restore ra and set carry
+  rc-n_current = *ra-p_n_current
+  rc-n_current += rd-current_add
+  *ra-p_n_current = rc-n_current
+  ra-p_n_current_double_and_carry = ra-p_n_current << 1 # Store carry bit, carry will be 0
+  rd-step_double = 11111110 # -2 -- not -1 since ra is multiplied by two (shifted left once)
+  ra-p_n_current_double_and_carry += rd-step_double
+  rd-current_add ^= rd # To add only the carry in the coming additions
+  ra-p_n_current_double_and_carry == rb-p_n_add_double
+  ja $add_again
+
+  # Terminate if overflow
+  # This works since rb will be larger than ra only if
+  # ra has a carry in the LSB from the last add.
+  rb-p_n_add_double == ra-p_n_current_double_and_carry
+  ja $done
+
+  # Here rc = *n3
+  rb-p_n2 = $n2
+  rb-n2 = *rb-p_n2
+  # set n32_larger_than_16 (0 if n32 < 2^16, otherwise > 0)
+  rc-n3_or_n2 |= rb-n2 # will be > 0 if either *n2 > 0 or *n3 > 0
+  ra-p_n32_larger_than_16 = $n32_larger_than_16
+  *ra-p_n32_larger_than_16 = rc-n3_or_n2 # Stores a values > 0 if n32 >= 2^16
+
+  # Set m16 = 1
+  # rd will be 0 here, from the loop above
+  ra-p_m1 = $m1
+  *ra-p_m1 = rd-zero # *m1 = 0
+  rd-one = 1
+  ra-p_m0 += rd-one # ra = &m0
+  *ra-p_m0 = rd-one # *m0 = 1
+
+  # Set m_add to 4
+  ra-p_m_add += rd-one # ra = &m_add
+  rc-four = 4
+  *ra-p_m_add = rc-four
+
+# Set the next m16 value and see if it divides n32
+next_m: # REG: (*, *, *, *), FLAG: C UNSET
+  # m16 = m16 + 2 or 4, and also check if m16 == n32
+  rb-p_m_add = $m_add
+  rd-m_add = *rb-p_m_add # rd = current add
+  ra-mask = 6
+  ra-m_add_next ^= rd-m_add # ra: 2->4, 4->2 = next add
+  *rb-p_m_add = ra-m_add_next # store next add
+  ra-p_m0 = $m0
+  rb-m0 = *ra-p_m0
+  rb-m0 += rd-m_add
+  *ra-p_m0 = rb-m0
+  rc-p_n0 = $n0
+  rc-n0 = *rc-p_n0
+  rd-m_add_double_and_carry = rd-m_add << 1 # to store carry bit
+  rc-n0_xor_m0 ^= rb-m0 # rc = 0 means *n0 == *m0
+  rd-m_add = rd-m_add_double_and_carry >> 1 # restore carry bit
+  rd-zero = 0
+  ra-p_m1 = $m1
+  rb-m1 = *ra-p_m1
+  rb-m1 += rd-zero
+  jc $is_prime
+  *ra-p_m1 = rb-m1
+  ra-p_n1 = $n1
+  ra-n1 = *ra-p_n1
+  ra-n1_xor_m1 ^= rb-m1 # ra = 0 means *n1 == *m1
+  ra-n1_xor_m1 |= rc-n0_xor_m0 # ra = 0 means *n0 == *m0 && *n1 == *m1
+  jz $check_if_m_equal_n
+  jmp $set_R_16_zero
+# Do the final check to see that *n3 == *n2 == 0
+check_if_m_equal_n: # REG: (*, *, *, *), FLAG: *
+  rd-p_n32_larger_than_16 = $n32_larger_than_16
+  rd-n32_larger_than_16 = *rd-p_n32_larger_than_16
+  rd-m_equal_n |= rd-n32_larger_than_16
+  # if m16 == n32, then n32 is prime.
+  jz $is_prime
+
+# Set R16 = 0 and begin the long division n32 / m16
+set_R_16_zero: # REG: (*, *, *, *), FLAG: *
+  # Set R16 = 0
+  rd-zero ^= rd
+  ra-p_R0 = $R0
+  *ra-p_R0 = rd-zero
+  ra-p_R1 = $R1
+  *ra-p_R1 = rd-zero
+
+  # Set *n_cur = &n3, then *n_cur will decrease until past n0 and then the
+  # long division is done.
+  ra-p_n_cur = $n_cur
+  rb-p_n3 = $n3
+  *ra-p_n_cur = rb-p_n3
+
+# MODULE N_CUR_VAL
+  # Set *n_cur_val = **n_cur, for faster access (actually increases performance)
+  ra-p_n_cur_val = $n_cur_val
+  rc-n3 = *rb-p_n3
+  *ra-p_n_cur_val = rc-n3
+# END MODULE N_CUR_VAL
+
+# MODULE OPTIMIZE_POS
+  # Decrease *pos as far as possible to decrease the loop iterations needed
+  #ld   rb rc # rc = *n3 # comment if using N_CUR_VAL
+  # Set *pos = 2^7
+  ra-p_pos = $pos
+  rb-pos = 10000000
+  rc-n3 &= rc-n3
+  jz $pre_pre_next_n_cur # if *n3 == 0, go directly to n2
+optimize_pos:
+  rc-n3 == rb-pos
+  jea $pre_next_pos # if *n3 >= *pos, then we are done decreasing *pos
+  rb-pos = rb-pos >> 1 # decrease pos
+  jmp $optimize_pos
+# END MODULE OPTIMIZE_POS
+
+next_n_cur: # REG: (*, *, *n_cur_val, *), FLAG: *
+  # Set *pos = 2^7
+  ra-p_pos = $pos
+  rb-pos = 10000000
+# MODULE OPTIMIZE_POS
+pre_next_pos:
+# END MODULE OPTIMIZE_POS
+  *ra-p_pos = rb-pos
+
+# Start of the inner most loop
+next_pos: # REG: (&pos, *pos, *n_cur_val, *), FLAG: *
+  # If *pos & *n_cur_val (**n_cur): set carry
+  rc-n_cur_val_at_pos &= rb-pos
+  ra += rc-n_cur_val_at_pos # Since &pos = 11111111, this will set carry if rc > 0
+  # R16 <<= 1, i.e. R16 = 2 * R16 + n_bit_is_set_at_pos
+  ra-p_R0 = $R0
+  rb-R0 = *ra-p_R0
+  rb-R0 = rb-R0 << 1
+  *ra-p_R0 = rb-R0
+  rc-p_R1 = $R1
+  rd-R1 = *rc-p_R1
+  rd-R1 = rd-R1 << 1
+  *rc-p_R1 = rd-R1
+
+  # If overflow in R16 or R16 >= m16: R16 = R16 - m16
+  # We can actually ignore the carry, since (2 * R16 + 1) % 2**16 (which is what
+  # we have without the carry) will be less than m16, so when we subtract m16,
+  # we will underflow back again.
+  jc $subtract_m16
+  rc-p_m1 = $m1
+  rc-m1 = *rc-p_m1
+  # Compare *m1 >? *R1
+  rc-m1 == rd-R1
+  ja $dont_subtract # Most of the times it will jump here
+  je $check_lowbit
+  jmp $subtract_m16_post
+check_lowbit: # REG: (*, *R0, *, *R1), FLAG: *
+  ra-p_m0 = $m0
+  ra-m0 = *ra-p_m0
+  ra-m0 == rb-R0
+  ja $dont_subtract
+subtract_m16: # REG: (*, *R0, *, *R1), FLAG: *
+  # Load m16
+  rc-p_m1 = $m1
+  rc-m1 = *rc-p_m1
+subtract_m16_post: # REG: (*, *R0, *m1, *R1), FLAG: *
+  ra-p_m0 = $m0
+  ra-m0 = *ra-p_m0
+
+  # R16 = R16 + (~m16 + 1)
+  # ~m16
+  ra-tilde_m0 = !ra-m0
+  rc-tilde_m1 = !rc-m1
+  # add ~m16
+  rb-R0 += ra-tilde_m0
+  rd-R1 += rc-tilde_m1
+  # add 1
+  ra-one = 1
+  rc-zero ^= rc-tilde_m1
+  rb-R0 += ra-one
+  rd-R1 += rc-zero
+  clf
+  rc-p_R1 = $R1
+  *rc-p_R1 = rd-R1
+  rc-p_R0 += ra-one
+  *rc-p_R0 = rb-R0
+
+# Part of the inner most loop. Update pos
+dont_subtract: # REG: (*, *, *, *), FLAG: C UNSET, REST *
+  # pos >>= 1
+  ra-p_pos = $pos
+  rb-pos = *ra-p_pos
+  rb-pos = rb-pos >> 1
+  *ra-p_pos = rb-pos
+  jc $pre_next_n_cur # if this n_cur is done, jump (not so often)
+# Fetch *n_cur_val in preparation of jump to next_pos
+# MODULE N_CUR_VAL
+  rc-p_n_cur_val = $n_cur_val # Change to n_cur_val if using N_CUR_VAL (otherwise n_cur)
+# END MODULE N_CUR_VAL
+  rc-n_cur_val = *rc-p_n_cur_val
+# MODULE N_CUR_VAL
+  # rc-n_cur_val = *rc-p_n_cur_val # Add this if not using n_cur_val
+# END MODULE N_CUR_VAL
+  jmp $next_pos # go to next iteration of inner-most loop
+# MODULE OPTIMIZE_POS
+pre_pre_next_n_cur:
+  rb-zero = rb-pos << 1 # Will make rb = 0 and set carry, since rb = 1000000 here
+# END MODULE OPTIMIZE_POS
+pre_next_n_cur: # REG: (*, 0, *, *), FLAG: C SET, REST *
+  # Set *n_cur = *n_cur + 1
+  ra-p_n_cur = $n_cur
+  rd-n_cur = *ra-p_n_cur
+  rd-n_cur += rb-zero # Will add 1, since rb = 0 and carry is set
+  *ra-p_n_cur = rd-n_cur
+# MODULE N_CUR_VAL
+  # Set *n_cur_val = **n_cur
+  rb-p_n_cur_val = $n_cur_val
+  rc-n_cur_value = *rd-n_cur
+  *rb-p_n_cur_val = rc-n_cur_value
+# END MODULE N_CUR_VAL
+
+  # See if there are more bytes of n to loop through
+  ra-p_n_cur == rd-n_cur
+  ja $next_n_cur # if &n_cur > *n_cur
+
+# The remainder of n32 / m16 is now stored in R16, check if it is zero
+calc_R_16_done: # REG: (*, *, *, *), FLAG: *
+  ra-p_R0 = $R0
+  ra-R0 = *ra-p_R0
+  rb-p_R1 = $R1
+  rb-R1 = *rb-p_R1
+  rb-R1 |= ra-R0
+  jz $next_n # The remainder is zero, so n32 is not a prime
+  jmp $next_m # non-zero remainder
+
+done: # REG: (*, *, *, *), FLAG: *
+  rd-power_button = 4
+  outa rd-power_button # Power button
+  outd rd
+
+. 0
+. 0
+. 0
+. 0
+pragma pos 255
+pos: # this need to be pos 11111111
+. 0

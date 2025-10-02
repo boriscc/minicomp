@@ -1,0 +1,238 @@
+# This is a load controller. It can take load measurements for the total load
+# and the controllable load. It will then output a new value for the
+# controllable load to keep the total load around a specified maximum.
+#
+# Basically, the program does the following:
+#
+# total_max = get_input_blocking()
+# if total_max > 250: terminate
+# controllable_max = get_input_blocking()
+# if controllable_max > total_max: terminate
+# controllable_min = get_input_blocking()
+# if controllable_min > controllable_max: terminate
+# expected_measurement = "controllable"
+# busy_counter = 0
+# while True:
+#   if has_input:
+#     input = get_input()
+#     if input <= 250:
+#       *expected_measurement = input
+#     elif input == 254:
+#       expected_measurement = "controllable"
+#     elif input == 255:
+#       expected_measurement = "total"
+#     else:
+#       shutdown()
+#   busy_counter++
+#   if busy_counter > 0:
+#     continue
+#   if not has controllable_measurement or not has total_measurement:
+#     continue
+#   if abs(total_measurement - total_max - 10) <= 10:
+#     continue
+#   new_controllable = total_max - total_measurement + controllable_measurement - 10
+#   new_controllable = min(new_controllable, controllable_max)
+#   if controllable_measurement == 0 and new_controllable < controllable_min + 10:
+#      new_controllable = 0
+#   elif controllable_measurement > 0 and new_controllable < controllable_min:
+#      new_controllable = 0
+#   if new_controllable == controllable_measurement:
+#     continue
+#   controllable_measurement = new_controllable
+#   delete total_measurement
+#   busy_counter = 0
+#   print new_controllable
+#
+# Running with a frequency of 180 will make it delay about 60 seconds between
+# new control values.
+
+controllable_min:
+controllable_max:: # must be 1
+rc-p_init_val = 4
+total_max: # must be 2
+total_max_low:: # must be 3
+ra-io_keyboard_has_input = 7
+controllable_min_high: # must be 4
+rd-max = 250
+
+init_val_again:
+  outa ra-io_keyboard_has_input
+wait_for_input:
+  ind rb-input
+  rb-input &= rb-input
+  jz $wait_for_input
+  outa rb-io_keyboard
+  ind rb-input
+  rb-input == rd-max
+  ja $terminate
+  rd-zero ^= rd
+  rd-max += rb-input
+  rc-p_init_val = rc-p_init_val >> 1
+  *rc-p_init_val = rb-input
+  jc $init # jump if all input variables set
+  jmp $init_val_again
+
+init: # carry flag set
+  rc-hysteresis_size_minus_one = 9
+  # This will add a carry also
+  rb-controllable_min_high += rc-hysteresis_size_minus_one
+  rd-zero ^= rd
+  ra-p_controllable_min_high = $controllable_min_high
+  *ra-p_controllable_min_high = rb-controllable_min_high
+  rc-minus_hysteresis_size = 236 # = -20
+  rb-p_total_max = ra-p_controllable_min_high >> 1
+  ra-total_max = *rb-p_total_max
+  ra-total_max_low += rc-minus_hysteresis_size
+  rb-p_total_max_low += rd-zero # will add carry
+  *rb-p_total_max_low = ra-total_max_low
+
+loop_start:
+  rb-io_keyboard_has_input = 7
+  outa rb-io_keyboard_has_input
+  ind ra-has_input
+  ra-has_input &= ra-has_input
+  jz $busy_loop # jump if no input
+
+# handle input
+  outa ra-io_keyboard
+  ind rb-input
+  rc-load_max = 250
+  rb-input == rc-load_max
+  ja $handle_control_input
+
+store_input: # REG = (*, input, *, *)
+  rc-p_active_input = $active_input
+  rc-active_input = *rc-p_active_input
+  *rc-active_input = rb-input
+  jmp $busy_loop
+
+handle_control_input: # REG = (one, input, load_max, *)
+  rc-p_active_input = $active_input
+  rc-p_active_input == rb-input
+  jae $terminate
+  # The only input values left to handle are 254 and 255
+  *rc-p_active_input = rb-input
+
+busy_loop:
+  ra-p_delay = $delay
+  rb-delay = *ra-p_delay
+  rc-one = 1
+  clf
+  rb-delay += rc-one
+  jc $do_calc
+  *ra-p_delay = rb-delay
+  jmp $loop_start
+
+do_calc:
+  # Check if we have all measurements
+  rc-max_value = 250
+  rd-increment = 1
+  ra-p_measurement = $controllable_measurement
+
+check_next_measurement:
+  rb-measurement = *ra-p_measurement
+  rb-measurement == rc-max_value
+  ja $loop_start
+  ra-p_measurement += rd-increment
+  jc $check_if_total_measurement_in_deadband
+  jmp $check_next_measurement
+
+check_if_total_measurement_in_deadband:
+  ra-p_total_max = $total_max
+  ra-total_max = *ra-p_total_max
+  rb-p_total_measurement = $total_measurement
+  rb-total_measurement = *rb-p_total_measurement
+  rb-total_measurement == ra-total_max
+  ja $calc_new_controllable
+  rd-p_total_max_low = $total_max_low
+  rd-total_max_low = *rd-p_total_max_low
+  rb-total_measurement == rd-total_max_low
+  jae $loop_start
+
+calc_new_controllable:
+  # uncontrollable = total - controllable
+  # new_controllable = total_max - uncontrollable - deadband/2 = total_max - total + controllable - deadband/2
+  rd-p_controllable_measurement = $controllable_measurement
+  rd-controllable_measurement = *rd-p_controllable_measurement
+  rc-one = 1
+  rd-controllable_measurement == rb-total_measurement
+  jae $check_new_controllable_max
+  rb-total_measurement_tilde = !rb-total_measurement
+  rb-total_measurement_minus += rc-one
+  rd-controllable_measurement_minus_total_measurement += rb-total_measurement_minus # will not set carry
+  rb-minus_half_deadband = 246 # -10
+  rd-controllable_measurement_minus_total_measurement_minus_half_deadband += rb-minus_half_deadband
+  clf
+  ra-new_controllable += rd-controllable_measurement_minus_total_measurement_minus_half_deadband
+  # carry set <=> new_controllable >= 0
+  jc $check_new_controllable_max
+  ra-new_controllable ^= ra-new_controllable
+  jmp $handle_new_controllable
+
+check_new_controllable_max:
+  rb-controllable_max = *rc-one
+  rb-controllable_max == ra-new_controllable
+  jae $check_new_controllable_min
+  ra-new_controllable = *rc-one
+
+check_new_controllable_min:
+  rb-p_controllable_measurement = $controllable_measurement
+  rd-controllable_measurement = *rb-p_controllable_measurement
+  rd-controllable_measurement == ra-new_controllable
+  je $loop_start
+  rd-controllable_measurement &= rd-controllable_measurement
+  jz $use_controllable_min_high
+  rd-p_controllable_min ^= rd
+  jmp $check_if_should_be_zero
+use_controllable_min_high:
+  rd-p_controllable_min_high = $controllable_min_high
+check_if_should_be_zero:
+  rd-controllable_min = *rd-p_controllable_min
+  ra-new_controllable == rd-controllable_min
+  jae $handle_new_controllable
+  ra-new_controllable ^= ra
+
+handle_new_controllable:
+  # Check if the value has changed
+  rb-p_controllable_measurement = $controllable_measurement
+  rd-controllable_measurement = *rb-p_controllable_measurement
+  rd-controllable_measurement == ra-new_controllable
+  je $loop_start
+  *rb-p_controllable_measurement = ra-new_controllable
+
+  # Invalidate total_measurement to force a new measurement before next calc
+  rb-p_total_measurement += rc-one
+  rd-invalid_value = 254
+  *rb-p_total_measurement = rd-invalid_value
+
+  # Reset busy loop delay
+  rb-p_delay = $delay
+  rd-delay = rd-invalid_value >> 1
+  *rb-p_delay = rd-delay
+
+  # Print the new controllable value
+  rb-integer_printer = 3
+  outa rb-integer_printer
+  outd ra-new_controllable
+  rb-ascii_printer = 2
+  outa rb-ascii_printer
+  rb-newline = 10
+  outd rb-newline
+  jmp $loop_start
+
+terminate:
+  rd-power_button = 4
+  outa rd-power_button
+  outd rd
+
+delay:
+. 127
+pragma printpos
+
+pragma setpos 253
+active_input: # Will point to $controllable_measurement or $total_measurement
+. $controllable_measurement
+controllable_measurement:
+. 255
+total_measurement:
+. 255

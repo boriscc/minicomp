@@ -2,7 +2,7 @@ GCC ?= gcc
 
 CFLAGS = -O2 -funroll-loops -std=gnu99 -Wall -pedantic -W -Wextra -Werror -Wno-unused-parameter -Wno-unknown-pragmas -Wconversion -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -ggdb3
 EX_DIR = examples
-EX = hello_world.asm alphabet.asm add_from_keyboard.asm prime.asm mastermind.asm prime_long.asm prime_verylong.asm 2048game.asm tea_encrypt.asm
+EX = hello_world.asm alphabet.asm add_from_keyboard.asm prime.asm mastermind.asm prime_long.asm prime_verylong.asm 2048game.asm tea_encrypt.asm caesar_cipher.asm
 EX_ASM_FILES = $(patsubst %,$(EX_DIR)/%,$(EX))
 EX_RAM_FILES = $(patsubst %.asm,%.ram,$(EX_ASM_FILES))
 

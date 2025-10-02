@@ -1,0 +1,9 @@
+[project]
+name = "minicomp"
+version = "1.0.0"
+description = "8bit compute simulator and compiler"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.11.9",
+]

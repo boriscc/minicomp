@@ -2,17 +2,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include "config_impl.h"
 #ifdef HAVE_NCURSES
 #   include <ncurses.h>
 #else
 #   include <unistd.h>
 #   include <termios.h>
+#   define ERR 0
 #endif
 
-#ifndef HAVE_NCURSES
+static int gs_input_mode = PERI_INPUT_MODE_RAW;
+static char gs_input_line_buf[BUFSIZ];
+static char *gs_input_line_buf_pos = gs_input_line_buf;
+static unsigned char gs_input_buf[BUFSIZ];
+static unsigned char *gs_input_buf_head = gs_input_buf;
+static unsigned char *gs_input_buf_tail = gs_input_buf;
+
 int my_getch()
 {
+#ifdef HAVE_NCURSES
+    return getch();
+#else
     char buf = 0;
 
     struct termios old;
@@ -39,46 +50,81 @@ int my_getch()
     }
 
     return buf;
-}
 #endif
+}
+
+static int parse_number(char *s)
+{
+    if(strlen(s) == 3 && s[0] == '\'' && s[2] == '\'') {
+        return s[1];
+    }
+
+    /* Check if number is in binary */
+    if(strlen(s) == 8) {
+        int i;
+        int bad = 0;
+
+        for(i = 0; i < 8; i++) {
+            if(s[i] != '0' && s[i] != '1') {
+                bad = 1;
+                break;
+            }
+        }
+        if(bad == 0) {
+            int number = 0;
+            for(i = 0; i < 8; i++) {
+                number |= (s[i] == '1') << (7-i);
+            }
+            return number;
+        }
+    }
+
+    return (int)strtol(s, NULL, 0);
+}
+
+static void get_keyboard_input(computer *comp)
+{
+    int c;
+
+    while ((c = my_getch()) != ERR) {
+        if (gs_input_mode == PERI_INPUT_MODE_RAW) {
+            *gs_input_buf_head = (unsigned char)c;
+            gs_input_buf_head = gs_input_buf + ((size_t)gs_input_buf_head + 1) % sizeof(gs_input_buf);
+        } else if (gs_input_mode == PERI_INPUT_MODE_NUMBER) {
+            if (c == '\n') {
+                *gs_input_line_buf_pos = '\0';
+                int number = parse_number(gs_input_line_buf);
+                if (number >= 0 && number <= 0xff) {
+                    *gs_input_buf_head = (unsigned char)number;
+                    gs_input_buf_head = gs_input_buf + ((size_t)gs_input_buf_head + 1) % sizeof(gs_input_buf);
+                } else {
+                    peri_ascii_printer_output(comp, (unsigned char)'E');
+                }
+                gs_input_line_buf_pos = gs_input_line_buf;
+            } else {
+                *gs_input_line_buf_pos++ = (char)c;
+            }
+            peri_ascii_printer_output(comp, (unsigned char)c);
+        }
+    }
+}
 
 
 void peri_keyboard_buffered_input(computer *comp, unsigned char *key)
 {
-#ifdef HAVE_NCURSES
-    int val = getch();
-
-    if(val == ERR) val = 0;
-#else
-    int val = my_getch();
-#endif
-
-    *key = (unsigned char)val;
+    get_keyboard_input(comp);
+    if (gs_input_buf_head == gs_input_buf_tail) {
+        *key = 0;
+    } else {
+        *key = *gs_input_buf_tail;
+        gs_input_buf_tail = gs_input_buf + ((size_t)gs_input_buf_tail + 1) % sizeof(gs_input_buf);
+    }
 }
 
-void peri_keyboard_unbuffered_input(computer *comp, unsigned char *key)
+void peri_keyboard_has_input(computer *comp, unsigned char *has_input)
 {
-    int c, c2;
-
-#ifdef HAVE_NCURSES
-    c = getch();
-    if(c != ERR) {
-        while((c2 = getch()) != ERR) {
-            c = c2;
-        }
-    }
-
-    if(c == ERR) c = 0;
-#else
-    c = my_getch();
-    if(c) {
-        while((c2 = my_getch())) {
-            c = c2;
-        }
-    }
-#endif
-
-    *key = (unsigned char)c;
+    get_keyboard_input(comp);
+    *has_input = gs_input_buf_head != gs_input_buf_tail;
 }
 
 void peri_ascii_printer_output(computer *comp, unsigned char c)
@@ -191,3 +237,7 @@ void peri_random_input(computer *comp, unsigned char *rnd)
     *rnd = (unsigned char)rand();
 }
 
+void peri_keyboard_set_input_mode(int input_mode)
+{
+    gs_input_mode = input_mode;
+}

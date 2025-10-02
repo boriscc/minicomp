@@ -24,6 +24,7 @@ void computer_reset(computer *comp)
     memset(comp, 0, sizeof(*comp));
     comp->is_running = 1;
     comp->io_input[PERI_ADDR_KEYBOARD] = peri_keyboard_buffered_input;
+    comp->io_input[PERI_ADDR_KEYBOARD_HAS_INPUT] = peri_keyboard_has_input;
     comp->io_output[PERI_ADDR_ASCII_PRINTER] = peri_ascii_printer_output;
     comp->io_output[PERI_ADDR_INTEGER_PRINTER] = peri_integer_printer_output;
     comp->io_output[PERI_ADDR_HEX_PRINTER] = peri_hex_printer_output;

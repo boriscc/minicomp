@@ -10,6 +10,7 @@
 #   include <termios.h>
 #endif
 #include "computer.h"
+#include "peri.h"
 #ifdef HAVE_SIGNAL
 #   include <signal.h>
 #endif
@@ -38,13 +39,14 @@ struct arguments {
     int profile;
     unsigned long print_interval;
     char *ram_file;
+    int number_input;
 };
 
 static struct arguments gs_arg = {
 #ifdef HAVE_TIMING
     1000,
 #endif
-    0, 0, 0, 0, 0, NULL };
+    0, 0, 0, 0, 0, NULL, 0 };
 
 char const *argp_program_version = "simulator " MINICOMP_VERSION;
 char const *argp_program_bug_address = "<boris.carlsson@gmail.com>";
@@ -65,6 +67,7 @@ static struct argp_option gs_argp_options[] = {
     { "no-batch-mode", 'b', NULL, OPTION_HIDDEN, "Enable batch mode (no tty fiddling)", 0 },
     { "profile", 'P', NULL, 0, "Print profile information at the end", 0 },
     { "no-profile", 'p', NULL, OPTION_HIDDEN, "Print profile information at the end", 0 },
+    { "number-input", 'N', NULL, 0, "Parse input as numbers before sending to computer", 0 },
     { 0, 0, 0, 0, 0, 0 }
 };
 
@@ -105,6 +108,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
             break;
         case 'P':
             arguments->profile = 1;
+            break;
+        case 'N':
+            arguments->number_input = 1;
             break;
         case ARGP_KEY_ARG:
             if(state->arg_num == 0) arguments->ram_file = arg;
@@ -214,6 +220,10 @@ int main(int argc, char *argv[])
 #ifdef HAVE_TIMING
     cycle_time = 1 / gs_arg.frequency;
 #endif
+
+    if (gs_arg.number_input) {
+        peri_keyboard_set_input_mode(PERI_INPUT_MODE_NUMBER);
+    }
 
     init_screen();
 
